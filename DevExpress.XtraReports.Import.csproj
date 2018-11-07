@@ -161,6 +161,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Import\AccessReport.bmp" />
+    <EmbeddedResource Include="Import\AccessReportSelection.resx">
+      <DependentUpon>AccessReportSelection.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
