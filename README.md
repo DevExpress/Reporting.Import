@@ -16,7 +16,7 @@ FOR /R Reports %R IN (*.rpt) DO ReportsImport "/in:%R" "/out:%R.repx"
 
 The following command starts converting a specific report:
 ```
-C:\0>reportsimport /in:c:\0\crystal\file.rpt /out c:\0\converted\testreport.repx
+C:\0>reportsimport /in:c:\0\crystal\file.rpt /out:c:\0\converted\testreport.repx
 ```
 As a result of differences between DevExpress Reports and other reporting tools, the extent to which your converted report will match the original depends upon the layout of the initial report.
 Please consider the [requirements and limitations](https://docs.devexpress.com/XtraReports/1468/get-started-with-devexpress-reporting/add-a-report-to-your-.net-application/convert-third-party-reports-to-devexpress-reports) applying to the import of third-party reports.
