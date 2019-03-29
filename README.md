@@ -1,25 +1,23 @@
-# Reporting.Import
-In the project's properties, there are the following options, which you can adjust:
+# Overview
+This repository contains a console application project designed to convert third party reports into files supported by DevExpress Reports (XML). You can use these output files to [Load Report Layouts](https://docs.devexpress.com/XtraReports/2666/detailed-guide-to-devexpress-reporting/store-and-distribute-reports/store-report-layouts-and-documents/load-report-layouts) within the DevExpress Visual Studio Report Designer, DevExpress End-User Report Designer or display the report at runtime.
 
-In the **Build** tab, the **Conditional compilation symbols** specify the suppliers (all three - **Crystal**, **Active**, and **Access** - are enabled, by default).
+# Project Specifics
+You can modify the following options in project properties:
+ *	The **Build** Tab’s **Conditional compilation symbols** specifies a list of all supported third-party suppliers (all are enabled by default);
+ *	The **Debug** tab allows you to specify **Command line arguments**. These arguments determine input and output files ("in" and "out" parameters). If the file to be converted is stored within the application’s root folder, you only need to specify its name. Otherwise, specify a full path to the file. Similarly, for the "out" parameter, specify the name and path to the resulting file.
 
-And, in the **Debug** tab, you can specify the **Command line arguments**, which determine the input and output files (the "in" and "out" parameters). So, simply specify the name of the file that should be converted, if it resides in the same folder where the application's EXE file is located. Or, if it resides in another folder, specify the path to it. Similarly, for the "out" parameter, specify the name and path to the resulting file.
-
-Then, you can launch the application either from Visual Studio, or from the command line (with both parameters defined).
-
-**_Note: This project intentionally does not contain third-party libraries. To compile a converter application, you will have to personally add the required assemblies._**
-
-After running this tool, use the following command line to convert multiple reports at a time:
+# Examples of use
+You can launch the application either from Visual Studio, or from the command line (with both parameters defined).
+Use the following command line to convert multiple reports simultaneously:
 ```
 FOR /R Reports %R IN (*.rpt) DO ReportsImport "/in:%R" "/out:%R.repx"
 ```
-
-The following command starts converting a specific report:
+The following command starts the conversion process for an individual report: 
 ```
-C:\0>reportsimport /in:c:\0\crystal\file.rpt /out c:\0\converted\testreport.repx
+C:\0>ReportsImport /in:c:\0\crystal\file.rpt /out:c:\0\converted\testreport.repx
 ```
-As a result of differences between DevExpress Reports and other reporting tools, the extent to which your converted report will match the original depends upon the layout of the initial report.
-Please consider the [requirements and limitations](https://docs.devexpress.com/XtraReports/1468/get-started-with-devexpress-reporting/add-a-report-to-your-.net-application/convert-third-party-reports-to-devexpress-reports) applying to the import of third-party reports.
 
+# Limitations
+This report conversion/import tool is limited in scope (due to differences between DevExpress Reports and other reporting tools). Please review the [requirements and limitations](https://docs.devexpress.com/XtraReports/1468/get-started-with-devexpress-reporting/add-a-report-to-your-.net-application/convert-third-party-reports-to-devexpress-reports) related to this product before converting your existing reports.
 
-_All trademarks and registered trademarks are the property of their respective owners._
+**_Note: This project intentionally does not contain third party libraries. To compile the application, you need to manually add references to required assemblies._**
