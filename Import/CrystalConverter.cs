@@ -477,7 +477,8 @@ namespace DevExpress.XtraReports.Import {
                 ISupportInitialize supportInit = TargetReport;
                 supportInit.BeginInit();
                 try {
-                    ConvertAreas(crystalReport.ReportDefinition.Areas, crystalReport.FilePath);
+                    string filePath = !crystalReport.IsSubreport ? crystalReport.FilePath : string.Empty;
+                    ConvertAreas(crystalReport.ReportDefinition.Areas, filePath);
                     onEnd.ForEach(x => x());
                 } finally {
                     supportInit.EndInit();
@@ -631,8 +632,11 @@ namespace DevExpress.XtraReports.Import {
 
         void ConvertGroups(ReportDocument crystalReport) {
             //ClearGroupBands();
-            ConvertGroupHeaderBands(crystalReport.DataDefinition, GenerateGroupHeaderBands(crystalReport.ReportDefinition.Areas, crystalReport.FilePath));
-            ConvertGroupFooterBands(crystalReport.ReportDefinition.Areas, crystalReport.FilePath);
+            var filePath = !crystalReport.IsSubreport
+                ? crystalReport.FilePath
+                : string.Empty;
+            ConvertGroupHeaderBands(crystalReport.DataDefinition, GenerateGroupHeaderBands(crystalReport.ReportDefinition.Areas, filePath));
+            ConvertGroupFooterBands(crystalReport.ReportDefinition.Areas, filePath);
         }
 
         void ConvertGroupHeaderBands(DataDefinition dataDefinition, IList<GroupHeaderBand> reportBands) {
@@ -907,7 +911,7 @@ namespace DevExpress.XtraReports.Import {
         }
 
         static byte[] GetBmpBytes(CrystalDecisions.ReportAppServer.ReportDefModel.ISCRPictureObject crystalPicture, string crystalReportFileName, short indexOnSection) {
-            if(crystalPicture == null)
+            if(crystalPicture == null || string.IsNullOrEmpty(crystalReportFileName))
                 return null;
             ByteArray pictureData = crystalPicture.PictureData;
             if(pictureData != null && pictureData.ByteArray != null)
