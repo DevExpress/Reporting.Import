@@ -17,6 +17,28 @@ The following command starts the conversion process for an individual report:
 C:\0>ReportsImport /in:c:\0\crystal\file.rpt /out:c:\0\converted\testreport.repx
 ```
 
+# Crystal Reports Conversion Specifics
+
+If a Crystal report's function cannot be converted, it is replaced with the **"NOT_SUPPORTED"** message. The following sample demonstrates the resulting [expression](https://docs.devexpress.com/XtraReports/120091/detailed-guide-to-devexpress-reporting/use-expressions):
+
+| Crystal report | DevExpress report |
+| --- | --- |
+| isdate({report.Column}) | Iif(True, '#NOT_SUPPORTED#', 'isdate([Column])') |
+
+The conversion tool allows you to change this behavior and leave unrecognized functions in resulting expressions. Set the **UnrecognizedFunctionBehavior** parameter to *Ignore* when you run this tool.
+
+```
+ReportsImport /in:c:\0\crystal\file.rpt /out:c:\0\converted\testreport.repx /crystal:UnrecognizedFunctionBehavior=Ignore
+```
+
+The unrecognized *isdate* function is left unchanged in the following sample expression:
+
+| Crystal report | DevExpress report |
+| --- | --- |
+| isdate({report.Column}) | isdate([Column]) | 
+
+Implement [custom functions](https://docs.devexpress.com/XtraReports/DevExpress.XtraReports.Expressions.CustomFunctions) to support  unrecognized functions in DevExpress reports (the *isdate* custom function in the sample above).
+
 # Limitations
 This report conversion/import tool is limited in scope (due to differences between DevExpress Reports and other reporting tools). Please review the [requirements and limitations](https://docs.devexpress.com/XtraReports/1468/get-started-with-devexpress-reporting/add-a-report-to-your-.net-application/convert-third-party-reports-to-devexpress-reports) related to this product before converting your existing reports.
 
