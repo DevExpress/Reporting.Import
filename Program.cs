@@ -1,8 +1,9 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 
-namespace DevExpress.XtraReports.Import {
+namespace DevExpress.XtraReports.Design {
     internal class ResFinder {
     }
 }
@@ -17,13 +18,12 @@ namespace DevExpress.XtraReports.Import {
                 string outputFile;
                 if(!argDictionary.TryGetValue("/out", out outputFile))
                     throw new ArgumentException();
-
                 string path = Path.GetFullPath(inputFile);
                 if(!File.Exists(path))
                     throw new Exception("File \"" + path + "\" doesn't exist.");
                 ConfigureTracer();
 
-                ConverterBase converter = CreateConverter(Path.GetExtension(path));
+                ConverterBase converter = CreateConverter(Path.GetExtension(path), argDictionary);
                 ConversionResult conversionResult = converter.Convert(path);
                 conversionResult.TargetReport.SaveLayoutToXml(outputFile);
             } catch(Exception ex) {
@@ -48,6 +48,7 @@ namespace DevExpress.XtraReports.Import {
 #endif
 #if Crystal
                     "                    *.rpt file matches Crystal Reports.",
+                    "              /crystal:UnrecognizedFunctionBehavior=Ignore",
 #endif
                     "",
                     "              path2 Specifies the output file's location.\r\n",
@@ -56,7 +57,7 @@ namespace DevExpress.XtraReports.Import {
             foreach(string s in infos)
                 Console.WriteLine(s);
         }
-        static ConverterBase CreateConverter(string extension) {
+        static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary) {
 #if Access
             if(extension == ".mdb" || extension == ".mde")
                 return new AccessConverter();
@@ -66,15 +67,23 @@ namespace DevExpress.XtraReports.Import {
                 return new ActiveReportsConverter();
 #endif
 #if Crystal
-            if(extension == ".rpt")
+            if(extension == ".rpt") {
+                Dictionary<string, string> crystalProperties = CreateSubArg(argDictionary, "/crystal");
+                string unrecognizedFunctionBehavior;
+                if(crystalProperties.TryGetValue("UnrecognizedFunctionBehavior", out unrecognizedFunctionBehavior)) {
+                    CrystalConverter.UnrecognizedFunctionBehavior = string.Equals(unrecognizedFunctionBehavior, nameof(UnrecognizedFunctionBehavior.Ignore))
+                        ? UnrecognizedFunctionBehavior.Ignore
+                        : UnrecognizedFunctionBehavior.InsertWarning;
+                }
                 return new CrystalConverter();
+            }
 #endif
             throw new ArgumentException();
         }
         static Dictionary<string, string> CreateArgDictionary(string[] args) {
-            if(args.Length != 2)
+            if(args.Length < 2)
                 throw new ArgumentException();
-            Dictionary<string, string> argDictionary = new Dictionary<string, string>();
+            Dictionary<string, string> argDictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach(string arg in args) {
                 string[] items = arg.Split(new char[] { ':' }, 2);
                 if(items.Length < 2)
@@ -82,6 +91,16 @@ namespace DevExpress.XtraReports.Import {
                 argDictionary.Add(items[0], items[1]);
             }
             return argDictionary;
+        }
+        static Dictionary<string, string> CreateSubArg(Dictionary<string, string> argDictionary, string key) {
+            string subArgumentsString;
+            if(!argDictionary.TryGetValue(key, out subArgumentsString))
+                return new Dictionary<string, string>();
+            Dictionary<string, string> subArgDictionary = subArgumentsString
+                .Split(';')
+                .Select(x => x.Split(new[] { '=' }, 2))
+                .ToDictionary(x => x[0], x => x.Length == 2 ? x[1] : null, StringComparer.OrdinalIgnoreCase);
+            return subArgDictionary;
         }
 
         static void ConfigureTracer() {

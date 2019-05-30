@@ -14,7 +14,7 @@
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;Crystal;Access</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;Crystal;Access;Active</DefineConstants>
     <DebugSymbols>true</DebugSymbols>
     <WarningLevel>4</WarningLevel>
     <DebugType>full</DebugType>
@@ -45,6 +45,9 @@
     <Reference Include="CrystalDecisions.ReportAppServer.ReportDefModel">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="CrystalDecisions.ReportAppServer.DataDefModel">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
     <Reference Include="CrystalDecisions.ReportAppServer.CommonObjectModel">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
@@ -54,82 +57,80 @@
     <Reference Include="CrystalDecisions.Shared">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Pdf.v18.2.Core">
+    <Reference Include="DevExpress.Pdf.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.RichEdit.v18.2.Export">
+    <Reference Include="DevExpress.RichEdit.v19.1.Export">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Printing.v18.2.Core">
+    <Reference Include="DevExpress.Printing.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Utils.v18.2">
+    <Reference Include="DevExpress.Utils.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Data.v18.2">
+    <Reference Include="DevExpress.Data.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraEditors.v18.2">
+    <Reference Include="DevExpress.XtraEditors.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraPrinting.v18.2">
+    <Reference Include="DevExpress.XtraPrinting.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Charts.v18.2.Core">
+    <Reference Include="DevExpress.Charts.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraCharts.v18.2.Wizard">
+    <Reference Include="DevExpress.XtraCharts.v19.1.Wizard">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraCharts.v18.2">
+    <Reference Include="DevExpress.XtraCharts.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Office.v18.2.Core">
+    <Reference Include="DevExpress.Office.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.RichEdit.v18.2.Core">
+    <Reference Include="DevExpress.RichEdit.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraReports.v18.2.Extensions">
+    <Reference Include="DevExpress.XtraReports.v19.1.Extensions">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Images.v18.2">
+    <Reference Include="DevExpress.Images.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraRichEdit.v18.2">
+    <Reference Include="DevExpress.XtraRichEdit.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.PivotGrid.v18.2.Core">
+    <Reference Include="DevExpress.PivotGrid.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraPivotGrid.v18.2">
+    <Reference Include="DevExpress.XtraPivotGrid.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Sparkline.v18.2.Core">
+    <Reference Include="DevExpress.Sparkline.v19.1.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.CodeParser.v18.2">
+    <Reference Include="DevExpress.CodeParser.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Utils.v18.2.UI">
+    <Reference Include="DevExpress.Utils.v19.1.UI">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraReports.v18.2">
+    <Reference Include="DevExpress.XtraReports.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.DataAccess.v18.2">
+    <Reference Include="DevExpress.DataAccess.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Xpo.v18.2">
+    <Reference Include="DevExpress.Xpo.v19.1">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="GrapeCity.ActiveReports.Document.v11, Version=11.0.8705.0, Culture=neutral, PublicKeyToken=cc4967777c49a3ff, processorArchitecture=MSIL">
+    <Reference Include="GrapeCity.ActiveReports.Document.v11">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files (x86)\Common Files\GrapeCity\ActiveReports 11\GrapeCity.ActiveReports.Document.v11.dll</HintPath>
     </Reference>
-    <Reference Include="GrapeCity.ActiveReports.v11, Version=11.0.8705.0, Culture=neutral, PublicKeyToken=cc4967777c49a3ff, processorArchitecture=MSIL">
+    <Reference Include="GrapeCity.ActiveReports.v11">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files (x86)\Common Files\GrapeCity\ActiveReports 11\GrapeCity.ActiveReports.v11.dll</HintPath>
     </Reference>
     <Reference Include="System">
     </Reference>
@@ -152,8 +153,21 @@
     <Compile Include="Import\AccessReportSelection.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Import\ActiveReportsConverter.AssemblyResolve.cs" />
     <Compile Include="Import\ActiveReportsConverter.cs" />
     <Compile Include="Import\CrystalConverter.cs" />
+    <Compile Include="Import\CrystalFormula\Formula.cs" />
+    <Compile Include="Import\CrystalFormula\FormulaCalulationDirective.cs" />
+    <Compile Include="Import\CrystalFormula\FormulaConverter.cs" />
+    <Compile Include="Import\CrystalFormula\FormulaGrammar.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>FormulaGrammar.y</DependentUpon>
+    </Compile>
+    <Compile Include="Import\CrystalFormula\FormulaLexer.cs" />
+    <Compile Include="Import\CrystalFormula\FormulaParser.cs" />
+    <Compile Include="Import\CrystalFormula\FormulaParserException.cs" />
+    <Compile Include="Import\CrystalFormula\Messages.cs" />
     <Compile Include="Import\DataSetBasedExternalConverterBase.cs" />
     <Compile Include="Import\ExternalConverterBase.cs" />
     <Compile Include="Import\Interop.cs" />
@@ -161,12 +175,12 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Import\AccessReport.bmp" />
-    <EmbeddedResource Include="Import\AccessReportSelection.resx">
-      <DependentUpon>AccessReportSelection.cs</DependentUpon>
-    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="Import\CrystalFormula\FormulaGrammar.y">
+      <Generator>Yacc</Generator>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

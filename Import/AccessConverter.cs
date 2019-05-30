@@ -20,10 +20,7 @@ using AccessInterop = DevExpress.XtraReports.Import.Interop.Access;
 
 namespace DevExpress.XtraReports.Import {
     public class AccessConverter : DataSetBasedExternalConverterBase {
-        string reportName = string.Empty;
         AccessInterop._Application app = null;
-        ArrayList groupHeaders = new ArrayList();
-        ArrayList groupFooters = new ArrayList();
         AccessReportBase accessReport;
         protected AccessReportBase AccessReport {
             get {
@@ -50,11 +47,10 @@ namespace DevExpress.XtraReports.Import {
         static AccessConverter() {
         }
 
-        static void AssignNavigateUrl(XRControl xrControl, AccessInterop.Hyperlink hyperlink) {
-            try {
-                if(hyperlink != null)
-                    xrControl.NavigateUrl = hyperlink.get_Address();
-            } catch {
+        bool assignNavigateUrlUseReflection;
+        void AssignNavigateUrl(XRControl xrControl, AccessInterop.Hyperlink hyperlink) {
+            if(hyperlink != null) {
+                xrControl.NavigateUrl = hyperlink.GetAddress(ref assignNavigateUrlUseReflection);
             }
         }
         static void AssignBorderStyle(XRControl xrControl, int borderColor, byte borderStyle, byte borderWidth) {
@@ -215,15 +211,15 @@ namespace DevExpress.XtraReports.Import {
             else if(upperFormat == "SHORT TIME")
                 format = "t";
 
-            if(format == String.Empty)
+            if(format == string.Empty)
                 return "{0}";
 
             return "{0:" + format + '}';
         }
         static string MakeDataMember(string controlSource) {
             controlSource = controlSource.Trim();
-            if(controlSource[0] == '=')
-                return String.Empty;
+            if(!string.IsNullOrEmpty(controlSource) && controlSource[0] == '=')
+                return string.Empty;
             else
                 return controlSource;
         }
@@ -574,11 +570,11 @@ namespace DevExpress.XtraReports.Import {
                 }
             } catch { }
         }
-        void PerformConvert(string fileName) {
+        void PerformConvert(string fileName, string reportName) {
             PrepareDataSource(fileName);
 
             OpenCurrentDatabase(fileName);
-            OpenReport();
+            OpenReport(reportName);
             try {
                 CursorStorage.SetCursor(Cursors.WaitCursor);
 
@@ -603,7 +599,7 @@ namespace DevExpress.XtraReports.Import {
             accessReport = null;
         }
 
-        void OpenReport() {
+        void OpenReport(string reportName) {
             try {
                 app.DoCmd.GetType().InvokeMember("OpenReport", BindingFlags.InvokeMethod | BindingFlags.Instance, null, app.DoCmd, new object[] { reportName, AccessInterop.AcView.acViewDesign, "", "", AccessInterop.AcWindowMode.acHidden, null });
             } catch {
@@ -637,16 +633,27 @@ namespace DevExpress.XtraReports.Import {
                 app.Visible = false;
 
                 OpenCurrentDatabase(fileName);
-                string[] reportNames = GetReportNames(app.CurrentProject.AllReports);
 
-                AccessReportSelectionForm dlg = new AccessReportSelectionForm();
-                dlg.SetReportsList(reportNames);
-                if(dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK && dlg.SelectedReport != String.Empty) {
-                    reportName = dlg.SelectedReport;
-                    OpenReport();
-                    PerformConvert(fileName);
+                AccessInterop.AllObjects allReports = app.GetAllReports();
+                string[] reportNames = GetReportNames(allReports);
+                string reportName = "";
+                if(reportNames.Length == 1) {
+                    reportName = reportNames[0];
+                } else {
+                    AccessReportSelectionForm dlg = new AccessReportSelectionForm();
+                    var designerHost = TargetReport.Site.GetService<IDesignerHost>();
+                    LookAndFeel.DesignService.DesignLookAndFeelHelper.SetParentLookAndFeel(dlg, designerHost);
+                    dlg.SetReportsList(reportNames);
+                    IWin32Window owner = DialogRunner.GetOwnerWindow();
+                    if(dlg.ShowDialog(owner) == DialogResult.OK && dlg.SelectedReport != String.Empty) {
+                        reportName = dlg.SelectedReport;
+                    }
+                    dlg.Dispose();
                 }
-                dlg.Dispose();
+                if(!string.IsNullOrEmpty(reportName)) {
+                    OpenReport(reportName);
+                    PerformConvert(fileName, reportName);
+                }
             }
             /*
             catch (Exception e) {
@@ -668,6 +675,36 @@ namespace DevExpress.XtraReports.Import {
                     reports.Add(rpt.Name);
             }
             return reports.ToArray();
+        }
+    }
+
+    static class AccessApplicationExtension {
+        public static AccessInterop.AllObjects GetAllReports(this AccessInterop._Application application) {
+            var project = application.CurrentProject;
+            var allReports = GetProperty<AccessInterop.AllObjects>(project, "AllReports");
+            return allReports;
+        }
+
+        public static T GetProperty<T>(object obj, string propertyName) {
+            Type type = obj.GetType();
+            T result = (T)obj.GetType().InvokeMember(propertyName, BindingFlags.GetProperty, null, obj, null);
+            return result;
+        }
+
+        public static string GetAddress(this AccessInterop.Hyperlink hyperlink, ref bool useReflection) {
+            if(useReflection) {
+                try {
+                    return GetProperty<string>(hyperlink, "Address");
+                } catch {
+                    return "";
+                }
+            }
+            try {
+                return hyperlink.get_Address();
+            } catch {
+                useReflection = true;
+                return GetAddress(hyperlink, ref useReflection);
+            }
         }
     }
 }

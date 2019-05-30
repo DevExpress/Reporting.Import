@@ -8,37 +8,31 @@ using System.Data.OleDb;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Printing;
-using GrapeCity.ActiveReports;
+using System.Xml;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Drawing;
 using DevExpress.XtraPrinting.Native;
+using DevExpress.XtraPrinting.Shape;
 using DevExpress.XtraReports.UI;
-using ARPageSettings = GrapeCity.ActiveReports.PageSettings;
+using GrapeCity.ActiveReports;
 using GrapeCity.ActiveReports.Document.Section;
-using System.Xml;
+using ARPageSettings = GrapeCity.ActiveReports.PageSettings;
 
 namespace DevExpress.XtraReports.Import {
-    public class ActiveReportsConverter : DataSetBasedExternalConverterBase {
+    public sealed partial class ActiveReportsConverter : DataSetBasedExternalConverterBase {
+        static readonly Hashtable sectionBandMap = new Hashtable();
+        static readonly Hashtable controlsMap = new Hashtable();
+        static readonly Hashtable lineStyleMap = new Hashtable();
+        static readonly Hashtable picSizeModeMap = new Hashtable();
+        static readonly Hashtable summaryTypeMap = new Hashtable();
+        static readonly Hashtable summaryFuncMap = new Hashtable();
+        static readonly Hashtable barCodeSymbologyMap = new Hashtable();
+
         SectionReport sourceReport;
         string bindingPath = string.Empty;
+        static bool staticFieldsFilled = false;
 
-        static Hashtable sectionBandMap = new Hashtable();
-        static Hashtable controlsMap = new Hashtable();
-        static Hashtable lineStyleMap = new Hashtable();
-        static Hashtable picSizeModeMap = new Hashtable();
-        static Hashtable summaryTypeMap = new Hashtable();
-        static Hashtable summaryFuncMap = new Hashtable();
-        static Hashtable barCodeSymbologyMap = new Hashtable();
-
-        public static string FilterString {
-            get { return "Data Dynamics Active Reports (*.rpx)|*.rpx"; }
-        }
-
-        static int InchesToHOI(float value) {
-            return System.Convert.ToInt32(value * 100);
-        }
-
-        static ActiveReportsConverter() {
+        static void PopulateStatic() {
             sectionBandMap[SectionType.ReportHeader] = typeof(ReportHeaderBand);
             sectionBandMap[SectionType.PageHeader] = typeof(PageHeaderBand);
             sectionBandMap[SectionType.GroupHeader] = typeof(GroupHeaderBand);
@@ -55,6 +49,7 @@ namespace DevExpress.XtraReports.Import {
             controlsMap[typeof(GrapeCity.ActiveReports.SectionReportModel.Picture)] = typeof(XRPictureBox);
             controlsMap[typeof(GrapeCity.ActiveReports.SectionReportModel.RichTextBox)] = typeof(XRRichText);
             controlsMap[typeof(GrapeCity.ActiveReports.SectionReportModel.PageBreak)] = typeof(XRPageBreak);
+            controlsMap[typeof(GrapeCity.ActiveReports.SectionReportModel.Shape)] = typeof(XRShape);
             //controlsMap[typeof(GrapeCity.ActiveReports.SectionReportModel.SubReport)] = typeof(SubReport);
 
             lineStyleMap[GrapeCity.ActiveReports.SectionReportModel.LineStyle.Dash] = System.Drawing.Drawing2D.DashStyle.Dash;
@@ -98,7 +93,7 @@ namespace DevExpress.XtraReports.Import {
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Matrix_2_of_5] = new DevExpress.XtraPrinting.BarCode.Matrix2of5Generator(); //XRBarCodeSymbology.Matrix2of5;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Code39] = new DevExpress.XtraPrinting.BarCode.Code39Generator(); //XRBarCodeSymbology.Code39;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Code39x] = new DevExpress.XtraPrinting.BarCode.Code39ExtendedGenerator(); //XRBarCodeSymbology.Code39Extended;
-                                                                                                                       //barCodeSymbologyMap[BarCodeStyle.Code49] = XRBarCodeSymbology.Code39Extended;
+                                                                                                                                                                  //barCodeSymbologyMap[BarCodeStyle.Code49] = XRBarCodeSymbology.Code39Extended;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Code93x] = new DevExpress.XtraPrinting.BarCode.Code93ExtendedGenerator(); //XRBarCodeSymbology.Code93Extended;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Code_128_A] = new DevExpress.XtraPrinting.BarCode.Code128Generator(); //XRBarCodeSymbology.Code128;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Code_128_B] = new DevExpress.XtraPrinting.BarCode.Code128Generator(); //XRBarCodeSymbology.Code128;
@@ -108,12 +103,12 @@ namespace DevExpress.XtraReports.Import {
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.Code_93] = new DevExpress.XtraPrinting.BarCode.Code93Generator(); //XRBarCodeSymbology.Code93;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.EAN_13] = new DevExpress.XtraPrinting.BarCode.EAN13Generator(); //XRBarCodeSymbology.EAN13;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.EAN_8] = new DevExpress.XtraPrinting.BarCode.EAN8Generator(); //XRBarCodeSymbology.EAN8;
-                                                                                                           //barCodeSymbologyMap[BarCodeStyle.JapanesePostal] = XRBarCodeSymbology.Code39Extended;
+                                                                                                                                                      //barCodeSymbologyMap[BarCodeStyle.JapanesePostal] = XRBarCodeSymbology.Code39Extended;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.MSI] = new DevExpress.XtraPrinting.BarCode.CodeMSIGenerator(); //XRBarCodeSymbology.MSI;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.None] = new DevExpress.XtraPrinting.BarCode.Code128Generator(); //XRBarCodeSymbology.Code128;
-                                                                                                             //barCodeSymbologyMap[BarCodeStyle.Pdf417] = XRBarCodeSymbology.Code39Extended;
+                                                                                                                                                        //barCodeSymbologyMap[BarCodeStyle.Pdf417] = XRBarCodeSymbology.Code39Extended;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.PostNet] = new DevExpress.XtraPrinting.BarCode.PostNetGenerator(); //XRBarCodeSymbology.PostNet;
-                                                                                                                //barCodeSymbologyMap[BarCodeStyle.QRCode] = XRBarCodeSymbology.Code39Extended;
+                                                                                                                                                           //barCodeSymbologyMap[BarCodeStyle.QRCode] = XRBarCodeSymbology.Code39Extended;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.RM4SCC] = new DevExpress.XtraPrinting.BarCode.Code39ExtendedGenerator(); //XRBarCodeSymbology.Code39Extended;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.UCCEAN128] = new DevExpress.XtraPrinting.BarCode.EAN8Generator(); //XRBarCodeSymbology.EAN128;
             barCodeSymbologyMap[GrapeCity.ActiveReports.SectionReportModel.BarCodeStyle.UPC_A] = new DevExpress.XtraPrinting.BarCode.UPCAGenerator(); //XRBarCodeSymbology.UPCA;
@@ -122,6 +117,21 @@ namespace DevExpress.XtraReports.Import {
         }
 
         public ActiveReportsConverter() {
+            BeforeConvert();
+            if(!staticFieldsFilled) {
+                staticFieldsFilled = true;
+                PopulateStatic();
+            }
+        }
+
+        partial void BeforeConvert();
+
+        public static string FilterString {
+            get { return "GrapeCity ActiveReports (*.rpx)|*.rpx"; }
+        }
+
+        static int InchesToHOI(float value) {
+            return System.Convert.ToInt32(value * 100);
         }
 
         void ConvertPageSettings() {
@@ -139,13 +149,16 @@ namespace DevExpress.XtraReports.Import {
             TargetReport.Margins.Top = InchesToHOI(ps.Margins.Top);
             TargetReport.Margins.Bottom = InchesToHOI(ps.Margins.Bottom);
         }
-        public void ConvertWatermark() {
+
+        void ConvertWatermark() {
             if(sourceReport.Watermark != null) {
                 TargetReport.Watermark.ImageViewMode = ToImageViewMode(sourceReport.WatermarkSizeMode);
-                TargetReport.Watermark.Image = (Image)sourceReport.Watermark.Clone();
+                if(sourceReport.Watermark != null)
+                    TargetReport.Watermark.Image = (Image)sourceReport.Watermark.Clone();
                 TargetReport.Watermark.PageRange = sourceReport.WatermarkPrintOnPages;
             }
         }
+
         XRControl CreateXRControl(GrapeCity.ActiveReports.SectionReportModel.ARControl src) {
             if(src is GrapeCity.ActiveReports.SectionReportModel.SubReport)
                 return null;
@@ -156,7 +169,6 @@ namespace DevExpress.XtraReports.Import {
 
             return CreateXRControl(xrType);
         }
-
 
         static DevExpress.XtraPrinting.TextAlignment MakeXRAlignment(GrapeCity.ActiveReports.Document.Section.TextAlignment horz, VerticalTextAlignment vert) {
             DevExpress.XtraPrinting.TextAlignment xrAlign = DevExpress.XtraPrinting.TextAlignment.TopLeft;
@@ -436,7 +448,8 @@ namespace DevExpress.XtraReports.Import {
         void ConvertPictureBox(GrapeCity.ActiveReports.SectionReportModel.Picture src, XRPictureBox tgt) {
             tgt.BackColor = src.BackColor;
             tgt.NavigateUrl = src.HyperLink;
-            tgt.Image = (Image)src.Image.Clone();
+            if(src.Image != null)
+                tgt.Image = (Image)src.Image.Clone();
             tgt.Sizing = MakeSizeMode(src.SizeMode);
             tgt.BorderWidth = (int)src.LineWeight;
             tgt.BorderColor = src.LineColor;
@@ -453,11 +466,14 @@ namespace DevExpress.XtraReports.Import {
             tgt.LineDirection = MakeLineDirection(InchesToHOI(src.X1), InchesToHOI(src.Y1), InchesToHOI(src.X2), InchesToHOI(src.Y2));
         }
 
-        void ConvertShape(GrapeCity.ActiveReports.SectionReportModel.Shape src, XRControl tgt) {
+        void ConvertShape(GrapeCity.ActiveReports.SectionReportModel.Shape src, XRShape tgt) {
             tgt.BackColor = src.BackColor;
             tgt.BorderWidth = (int)src.LineWeight;
             tgt.BorderColor = src.LineColor;
             tgt.Borders = MakeBorderSide(src.LineStyle);
+            tgt.Shape = new ShapeRectangle {
+                Fillet = (int)src.RoundingRadius.Default.GetValueOrDefault()
+            };
         }
 
         void ConvertBarCode(GrapeCity.ActiveReports.SectionReportModel.Barcode src, XRBarCode tgt) {
@@ -514,7 +530,7 @@ namespace DevExpress.XtraReports.Import {
             else if(src is GrapeCity.ActiveReports.SectionReportModel.Barcode)
                 ConvertBarCode((GrapeCity.ActiveReports.SectionReportModel.Barcode)src, (XRBarCode)tgt);
             else if(src is GrapeCity.ActiveReports.SectionReportModel.Shape)
-                ConvertShape((GrapeCity.ActiveReports.SectionReportModel.Shape)src, tgt);
+                ConvertShape((GrapeCity.ActiveReports.SectionReportModel.Shape)src, (XRShape)tgt);
         }
 
         void ConvertControls(GrapeCity.ActiveReports.SectionReportModel.Section section, Band band) {
@@ -609,16 +625,22 @@ namespace DevExpress.XtraReports.Import {
                 CursorStorage.RestoreCursor();
             }
         }
-        protected PropertyDescriptor GetProperty(object obj, string propName) {
+        PropertyDescriptor GetProperty(object obj, string propName) {
             PropertyDescriptor descriptor = TypeDescriptor.GetProperties(obj)[propName];
             if(descriptor == null)
-                throw (new ArgumentException(propName));
+                throw new ArgumentNullException(propName);
             return descriptor;
         }
 
-        protected void SetPropertyValue(object obj, string propName, object value) {
+        void SetPropertyValue(object obj, string propName, object value) {
             PropertyDescriptor descriptor = GetProperty(obj, propName);
             descriptor.SetValue(obj, value);
+        }
+
+        public ConversionResult Convert(SectionReport activeReport) {
+            sourceReport = activeReport;
+            PerformConversion(PerformConvert);
+            return new ConversionResult(TargetReport, SourceReport);
         }
 
         protected override void ConvertInternal(string fileName) {
@@ -630,8 +652,8 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
-        protected SqlDataAdapter CreateSqlDataAdapter(SqlCommand selectCommand, string tableName) {
-            SqlDataAdapter dataAdapter = new SqlDataAdapter(selectCommand);
+        SqlDataAdapter CreateSqlDataAdapter(SqlCommand selectCommand, string tableName) {
+            var dataAdapter = new SqlDataAdapter(selectCommand);
             CreateTableMapping(dataAdapter, tableName);
             return dataAdapter;
         }

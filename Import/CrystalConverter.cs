@@ -13,13 +13,17 @@ using System.Runtime.InteropServices;
 using CrystalDecisions.CrystalReports.Engine;
 using CrystalDecisions.ReportAppServer.CommonObjectModel;
 using CrystalDecisions.Shared;
+using DevExpress.Data.Filtering;
 using DevExpress.DataAccess.ConnectionParameters;
 using DevExpress.DataAccess.Sql;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Native;
+using DevExpress.XtraReports.Design.Import.CrystalFormula;
+using DevExpress.XtraReports.Native;
 using DevExpress.XtraReports.Parameters;
 using DevExpress.XtraReports.UI;
 using Cr = CrystalDecisions.CrystalReports.Engine;
+using CrData = CrystalDecisions.ReportAppServer.DataDefModel;
 
 namespace DevExpress.XtraReports.Import {
     public class CrystalConverter : ExternalConverterBase {
@@ -190,30 +194,24 @@ namespace DevExpress.XtraReports.Import {
                 }
             }
 
-            public static bool TryGetXRParameterType(ParameterValueKind kind, out Type type) {
+            public static Type GetXRParameterType(ParameterValueKind kind, string parameterName) {
                 switch(kind) {
                     case ParameterValueKind.BooleanParameter:
-                        type = typeof(bool);
-                        break;
+                        return typeof(bool);
                     case ParameterValueKind.CurrencyParameter:
-                        type = typeof(decimal);
-                        break;
+                        return typeof(decimal);
                     case ParameterValueKind.DateParameter:
                     case ParameterValueKind.DateTimeParameter:
                     case ParameterValueKind.TimeParameter:
-                        type = typeof(DateTime);
-                        break;
+                        return typeof(DateTime);
                     case ParameterValueKind.NumberParameter:
-                        type = typeof(double);
-                        break;
+                        return typeof(double);
                     case ParameterValueKind.StringParameter:
-                        type = typeof(string);
-                        break;
+                        return typeof(string);
                     default:
-                        type = null;
-                        break;
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_ParameterType_NotSupported_Format, parameterName));
+                        return typeof(string);
                 }
-                return type != null;
             }
 
             public static bool TryConvertSummaryFunc(SummaryOperation crystalSummaryOperation, bool useRunningSummary, out SummaryFunc summaryFunc) {
@@ -394,33 +392,86 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
-        static class Messages {
-            internal static string
-                Information_Started = "SAP Crystal Reports to XtraReports Converter - Conversion started.",
-                Information_Completed = "SAP Crystal Reports to XtraReports Converter - Conversion finished.",
-                Information_CompletedWithError = "SAP Crystal Reports to XtraReports Converter - Conversion finished with error.",
-                Error_Generic_Format = "Cannot complete conversion because of the following exception: '{0}'.",
-                Warning_Connection_OleDbProviderNotSupported_Format = "Connection - Cannot generate a report data source because the following OLE DB provider is not supported: '{0}'.",
-                Warning_Connection_OleDbProviderNotSpecified = "Connection - Cannot generate a report data source because the OLE DB connection has no provider.",
-                Warning_Connection_DatabaseDllNotSupported_Format = "Connection - Cannot generate a report data source because the following database DLL is not supported: '{0}'.",
-                Warning_Formula_NotSupported = "Formula - Cannot properly convert formulas. Calculated fields with the unspecified Expression are created instead.",
-                Warning_FieldObject_Kind_NotSupported_Format = "FieldObject named '{0}' with definition kind '{1}' is not currently supported.",
-                Warning_FieldObject_SpecialVarType_NotSupported_Format = "FieldObject named '{0}' with special field '{1}' is not currently supported.",
-                Warning_SummaryOperation_NotSupported_Format = "FieldObject named '{0}' with summary operation '{1}' is not currently supported.",
-                Warning_PictureContent_NotSupported_Format = "PictureObject named '{0}' cannot be properly converted with the image content due to API limitations of SAP Crystal Reports.",
-                Warning_Subreport_NotSupported_Format = "SubreportObject named '{0}' has not been converted.",
-                Warning_Chart_NotSupported_Format = "ChartObject named '{0}' has not been converted.",
-                Warning_CrossTab_NotSupported_Format = "CrossTabObject named '{0}' has not been converted.",
-                Warning_ReportObjectKind_NotSupported_Format = "Report Object named '{0}' with kind '{1}' has not been converted.",
-                Warning_ReportParameter_NotSupported_Format = "Report Parameter named '{0}' with type '{1}' is not supported.",
-                Warning_Binding_CanNotResolve_Format = "Report Object named '{0}' has unsupported binding '{1}'.",
-                Control_Untranslated = "Untranslated",
-                Control_CantResolveBinding = "Cannot resolve binding"
-            ;
+        internal static class ExpressionFactory {
+            public static string CreateExpression(string crystalFormula, Dictionary<string, string> columnsMap, Func<string, CalculatedField> getCalculatedFieldByFormula, string calculatedFieldName, string dataMember, out Formula formula) {
+                formula = null;
+                crystalFormula = crystalFormula?.Trim();
+                if(string.IsNullOrEmpty(crystalFormula))
+                    return string.Empty;
+                string result;
+                if(TryGetSimpleBindingPath(crystalFormula, columnsMap, getCalculatedFieldByFormula, calculatedFieldName, dataMember, out result))
+                    return result;
+                formula = ParseFormula(crystalFormula, calculatedFieldName);
+                return string.Format("Iif(True, '{0}', '{1}')", FormulaParser.NotSupportedStub, crystalFormula.Replace("'", "''"));
+            }
+            static bool StringHasSingleChar(string value, char searchChar) {
+                return CountChars(value, searchChar) == 1;
+            }
+            static bool IsSimpleBindingPath(string crystalFormula) {
+                return crystalFormula.Length > 2
+                    && crystalFormula[0] == '{'
+                    && crystalFormula[crystalFormula.Length - 1] == '}'
+                    && StringHasSingleChar(crystalFormula, '{')
+                    && StringHasSingleChar(crystalFormula, '}');
+            }
+            static bool TryGetSimpleBindingPath(string crystalFormula, Dictionary<string, string> columnsMap, Func<string, CalculatedField> getCalculatedFieldByFormula, string calculatedFieldName, string dataMember, out string result) {
+                if(!IsSimpleBindingPath(crystalFormula)) {
+                    result = null;
+                    return false;
+                }
+                result = crystalFormula.Substring(1, crystalFormula.Length - 2);
+                string mappedColumn;
+                if(columnsMap.TryGetValue(result, out mappedColumn))
+                    result = mappedColumn;
+                else if(result.Length > 1 && result[0] == '@') {
+                    string formulaName = result.Substring(1);
+                    CalculatedField calculatedField = getCalculatedFieldByFormula(result.Substring(1));
+                    if(calculatedField == null)
+                        throw new FormulaParserException(string.Format(Messages.Warning_CalculatedField_FormulaNotFound_Format, formulaName, calculatedFieldName));
+                    result = calculatedField.Name;
+                }
+                if(result.StartsWith(dataMember + "."))
+                    result = result.Substring(dataMember.Length + 1);
+                return true;
+            }
+            static Formula ParseFormula(string crystalFormula, string calculatedFieldName) {
+                using(var reader = new StringReader(crystalFormula)) {
+                    var lexer = new FormulaLexer(reader);
+                    try {
+                        Formula formula = FormulaParser.Parse(
+                            lexer,
+                            CrystalConverter.UnrecognizedFunctionBehavior == UnrecognizedFunctionBehavior.Ignore,
+                            x => Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_CalculatedField_UncategorizedFunction_Format, x, calculatedFieldName)));
+                        return formula;
+                    } catch(Exception e) {
+                        string message = AugmentExceptionText(calculatedFieldName, e.Message, crystalFormula, lexer.Line, lexer.Col, lexer.Position);
+                        if(!(e is FormulaParserException))
+                            message += Environment.NewLine + e.ToString();
+                        Tracer.TraceError(NativeSR.TraceSource, message);
+                        return null;
+                    }
+                }
+            }
+            static string AugmentExceptionText(string calculatedFieldName, string exceptionMessage, string failedQuery, int failedLine, int failedCol, int failedPosition) {
+                string grammarCatchAllErrorMessage = "Parser error at calculated field '{0}' line {1}, character {2}: '{3}'" + Environment.NewLine + "{4}" + Environment.NewLine;
+                string malformedQuery = failedQuery;
+                try {
+                    malformedQuery = malformedQuery.Substring(0, failedPosition) + DevExpress.Data.Filtering.Exceptions.FilteringExceptionsText.ErrorPointer + malformedQuery.Substring(failedPosition);
+                } catch { }
+                return string.Format(System.Globalization.CultureInfo.InvariantCulture, grammarCatchAllErrorMessage, calculatedFieldName, failedLine, failedCol, exceptionMessage, malformedQuery);
+            }
+            internal static int CountChars(string text, char ch) {
+                int result = 0;
+                foreach(char textChar in text)
+                    if(textChar == ch)
+                        result++;
+                return result;
+            }
         }
         #endregion
 
-        public static bool DefaultSelectFullTableSchema { get; set; }
+        public static UnrecognizedFunctionBehavior UnrecognizedFunctionBehavior { get; set; } = UnrecognizedFunctionBehavior.InsertWarning;
+        public static bool DefaultSelectFullTableSchema { get; set; } = true;
         public static string FilterString { get { return "Crystal Reports (*.rpt)|*.rpt"; } }
         static readonly char[] DotSeparator = { '.' };
 
@@ -433,10 +484,12 @@ namespace DevExpress.XtraReports.Import {
 
         public bool? SelectFullTableSchema { get; set; }
 
-        readonly Dictionary<string, Band> bandsByOriginalNames = new Dictionary<string, Band>();
-        readonly Dictionary<string, Parameter> parametersByOriginalNames = new Dictionary<string, Parameter>();
-        readonly Dictionary<string, SqlDataSource> sqlDataSourcesByTableNames = new Dictionary<string, SqlDataSource>();
-        readonly Dictionary<Tuple<SqlDataSource, string>, SelectQuery> singleQueriesByDataSourcesAndTables = new Dictionary<Tuple<SqlDataSource, string>, SelectQuery>();
+        readonly Dictionary<string, Band> bandsByOriginalNames = new Dictionary<string, Band>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, Parameter> parametersByOriginalNames = new Dictionary<string, Parameter>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, Tuple<SqlDataSource, SqlQuery>> sqlQueriesByCrystalTableNames = new Dictionary<string, Tuple<SqlDataSource, SqlQuery>>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, Tuple<CalculatedField, Formula>> calculatedFieldsByFormulae = new Dictionary<string, Tuple<CalculatedField, Formula>>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<string, string> sqlSelectQueryColumnsByCrystalTableColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        readonly Dictionary<StoredProcQuery, object> crystalStoredProceduresByStoredProcQueries = new Dictionary<StoredProcQuery, object>(); // Value=CrData.ISCRProcedure; do not use types from CrystalDecisions.*.dll assemblies in the class fields
         readonly List<Action> onEnd = new List<Action>();
 
         ConversionResult Convert(ReportDocument crystalReport) {
@@ -445,9 +498,8 @@ namespace DevExpress.XtraReports.Import {
         }
 
         protected override void ConvertInternal(string fileName) {
-            ReportDocument crystalReport = null;
+            var crystalReport = new ReportDocument();
             try {
-                crystalReport = new ReportDocument();
                 crystalReport.Load(fileName);
             } catch {
                 Tracer.TraceInformation(NativeSR.TraceSource, Messages.Information_CompletedWithError);
@@ -462,22 +514,28 @@ namespace DevExpress.XtraReports.Import {
             try {
                 bandsByOriginalNames.Clear();
                 parametersByOriginalNames.Clear();
-                sqlDataSourcesByTableNames.Clear();
+                sqlQueriesByCrystalTableNames.Clear();
+                calculatedFieldsByFormulae.Clear();
+                sqlSelectQueryColumnsByCrystalTableColumns.Clear();
+                crystalStoredProceduresByStoredProcQueries.Clear();
                 onEnd.Clear();
 
+                string filePath = !crystalReport.IsSubreport ? crystalReport.FilePath : string.Empty;
                 TargetReport.ReportUnit = ReportUnit.HundredthsOfAnInch;
 
-                GenerateDataSources(crystalReport.Database);
-                ConvertCalcFields(crystalReport.DataDefinition.FormulaFields);
-                if(!crystalReport.IsSubreport)
+                GenerateDataSources(crystalReport.Database, filePath);
+                if(!crystalReport.IsSubreport) {
                     ConvertReportParameters(crystalReport.ParameterFields, crystalReport.Database.Tables);
+                    AssignStoredProcedureParameters();
+                }
+                ConvertCalculatedFields(crystalReport.DataDefinition.FormulaFields);
+                PostConvertCalculatedFields();
                 ConvertGroups(crystalReport);
                 if(!crystalReport.IsSubreport)
                     ConvertPageSettings(crystalReport.PrintOptions);
                 ISupportInitialize supportInit = TargetReport;
                 supportInit.BeginInit();
                 try {
-                    string filePath = !crystalReport.IsSubreport ? crystalReport.FilePath : string.Empty;
                     ConvertAreas(crystalReport.ReportDefinition.Areas, filePath);
                     onEnd.ForEach(x => x());
                 } finally {
@@ -491,76 +549,135 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
-        void GenerateDataSources(Database crystalDatabase) {
+        void GenerateDataSources(Database crystalDatabase, string originalReportPath = null) {
             SqlDataSource[] sqlDataSources = crystalDatabase.Tables
                 .Cast<Cr.Table>()
                 .GroupBy(x => x.LogOnInfo.ConnectionInfo, CrystalConnectionInfoEqualityComparer.Instance)
-                .Select(x => GenerateSqlDataSource(x.Key, x, crystalDatabase.Links))
+                .Select(x => GenerateSqlDataSource(x.Key, x, crystalDatabase.Links, originalReportPath))
                 .Where(x => x != null)
                 .ToArray();
             TargetReport.ComponentStorage.AddRange(sqlDataSources);
             SqlDataSource firstDataSource = sqlDataSources.FirstOrDefault();
+            if(sqlDataSources.Length > 1)
+                Tracer.TraceWarning(NativeSR.TraceSource, Messages.Warning_DataSource_Limitation);
             TargetReport.DataSource = firstDataSource;
-            SqlQuery firstQuery = firstDataSource != null ? firstDataSource.Queries.FirstOrDefault() : null;
-            TargetReport.DataMember = firstQuery != null ? firstQuery.Name : string.Empty;
+            TargetReport.DataMember = firstDataSource?.Queries.FirstOrDefault()?.Name ?? string.Empty;
         }
 
-        SqlDataSource GenerateSqlDataSource(ConnectionInfo connection, IEnumerable<Cr.Table> crystalTables, TableLinks crystalTableLinks) {
-            DataConnectionParametersBase dataConnectionParameters = GenerateConnectionParameters(connection);
+        SqlDataSource GenerateSqlDataSource(ConnectionInfo connection, IEnumerable<Cr.Table> crystalTables, TableLinks crystalTableLinks, string originalReportPath = null) {
+            DataConnectionParametersBase dataConnectionParameters = GenerateConnectionParameters(connection, originalReportPath);
             if(dataConnectionParameters == null)
                 return null;
             var sqlDataSource = new SqlDataSource(dataConnectionParameters);
             NamingMapper.GenerateAndAssignXRControlName(sqlDataSource, connection.DatabaseName);
             var schemaProvider = new FieldListResultSchemaProvider(sqlDataSource.Name);
-            Tuple<SelectQuery, Dictionary<string, Type>> queryDefinition = GenerateQueryDefinition(crystalTables, crystalTableLinks);
-            SelectQuery selectQuery = queryDefinition.Item1;
-            sqlDataSource.Queries.Add(selectQuery);
-            foreach(string tableName in crystalTables.Select(x => x.Location)) {
-                sqlDataSourcesByTableNames[tableName] = sqlDataSource;
-                if(selectQuery.Tables.Count == 1) {
-                    singleQueriesByDataSourcesAndTables[Tuple.Create(sqlDataSource, tableName)] = selectQuery;
-                }
+            var crystalTablesList = crystalTables.ToList();
+            foreach(Cr.Table crystalTable in crystalTablesList)
+                sqlQueriesByCrystalTableNames[crystalTable.Name] = Tuple.Create(sqlDataSource, (SqlQuery)null);
+            Dictionary<SqlQuery, Tuple<Dictionary<string, Type>, Cr.Table>> queryDefinitions = GenerateQueryDefinitions(crystalTablesList, crystalTableLinks);
+            foreach(KeyValuePair<SqlQuery, Tuple<Dictionary<string, Type>, Cr.Table>> queryDefinition in queryDefinitions) {
+                Tuple<Dictionary<string, Type>, Cr.Table> dataSourceQueryDefinition = queryDefinition.Value;
+                SqlQuery sqlQuery = queryDefinition.Key;
+                if(dataSourceQueryDefinition.Item2 != null)
+                    sqlQueriesByCrystalTableNames[dataSourceQueryDefinition.Item2.Name] = Tuple.Create(sqlDataSource, sqlQuery);
+                schemaProvider.AddView(sqlQuery.Name, dataSourceQueryDefinition.Item1);
+                sqlDataSource.Queries.Add(sqlQuery);
             }
-            schemaProvider.AddView(selectQuery.Name, queryDefinition.Item2);
             sqlDataSource.ResultSchemaSerializable = schemaProvider.GetResultSchemaSerializable();
             return sqlDataSource;
         }
 
-        Tuple<SelectQuery, Dictionary<string, Type>> GenerateQueryDefinition(IEnumerable<Cr.Table> crystalTables, TableLinks crystalTableLinks) {
-            Cr.Table singleCrystalTable = crystalTables.Count() == 1 ? crystalTables.First() : null;
-            var result = new SelectQuery();
-            string originalName = singleCrystalTable != null ? singleCrystalTable.Location : null;
-            result.Name = NamingMapper.GenerateSafeName<SelectQuery>(originalName);
-            var columns = new Dictionary<string, Type>();
-            var displayColumnNames = new HashSet<string>();
+        Dictionary<SqlQuery, Tuple<Dictionary<string, Type>, Cr.Table>> GenerateQueryDefinitions(List<Cr.Table> crystalTables, TableLinks crystalTableLinks = null, Func<Cr.Table, DatabaseFieldDefinition, bool> columnsFilter = null) {
+            var result = new Dictionary<SqlQuery, Tuple<Dictionary<string, Type>, Cr.Table>>();
+            Cr.Table singleCrystalTable = crystalTables.Count == 1 ? crystalTables[0] : null;
+            string singleCrystalTableOriginalName = singleCrystalTable?.Location;
+            var selectQuery = new SelectQuery {
+                Name = NamingMapper.GenerateSafeName<SelectQuery>(singleCrystalTableOriginalName)
+            };
+            var selectQueryColumns = new Dictionary<string, Type>();
+            var selectQueryDisplayColumnNames = new HashSet<string>();
+            var selectQueryCrystalTableList = new List<Cr.Table>();
             foreach(Cr.Table crystalTable in crystalTables) {
-                DataAccess.Sql.Table table = result.AddTable(crystalTable.Name);
-                foreach(DatabaseFieldDefinition crystalTableColumn in crystalTable.Fields) {
-                    if(!SelectFullTableSchema.GetValueOrDefault(DefaultSelectFullTableSchema) && crystalTableColumn.UseCount == 0)
-                        continue;
-                    string dispayColumnName = crystalTableColumn.Name;
-                    string crystalColumnAlias = null;
-
-                    if(displayColumnNames.Contains(dispayColumnName)) {
-                        crystalColumnAlias = crystalTableColumn.TableName + "_" + crystalTableColumn.Name;
-                        dispayColumnName = crystalColumnAlias;
-                    }
-                    result.SelectColumn(table, crystalTableColumn.Name, crystalColumnAlias);
-                    columns.Add(dispayColumnName, CrystalTypeConverter.ConvertToType(crystalTableColumn.ValueType));
-                    displayColumnNames.Add(dispayColumnName);
+                var rasTable = GetRasObject<CrystalDecisions.ReportAppServer.DataDefModel.ISCRTable>(crystalTable);
+                if(rasTable.ClassName == "CrystalReports.Procedure") {
+                    if(singleCrystalTable == null)
+                        Tracer.TraceWarning(NativeSR.TraceSource, Messages.Warning_DataSourceSP_Limitation);
+                    Tuple<StoredProcQuery, Dictionary<string, Type>> spQueryDefinition = GenerateStoredProcQueryDefinition(crystalTable, columnsFilter);
+                    result.Add(spQueryDefinition.Item1, Tuple.Create(spQueryDefinition.Item2, crystalTable));
+                    continue;
                 }
+                FillSelectQueryDefinition(selectQuery, selectQueryColumns, selectQueryDisplayColumnNames, crystalTable, columnsFilter);
+                selectQueryCrystalTableList.Add(crystalTable);
             }
-            if(singleCrystalTable == null) {
-                foreach(TableLink crystalTableLink in crystalTableLinks) {
-                    DataAccess.Sql.Table sourceTable = result.Tables.FirstOrDefault(x => x.Name == crystalTableLink.SourceTable.Location);
-                    DataAccess.Sql.Table destinationTable = result.Tables.FirstOrDefault(x => x.Name == crystalTableLink.DestinationTable.Location);
-                    if(sourceTable != null && destinationTable != null) {
-                        RelationColumnInfo[] relationColumnInfo = GenerateRelationColumnInfo(crystalTableLink.DestinationFields, crystalTableLink.SourceFields);
-                        result.AddRelation(sourceTable, destinationTable, relationColumnInfo);
+            if(selectQuery.Tables.Count > 0) {
+                if(crystalTableLinks != null) {
+                    foreach(TableLink crystalTableLink in crystalTableLinks) {
+                        DataAccess.Sql.Table sourceTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.SourceTable.Location);
+                        DataAccess.Sql.Table destinationTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.DestinationTable.Location);
+                        if(sourceTable != null && destinationTable != null) {
+                            RelationColumnInfo[] relationColumnInfo = GenerateRelationColumnInfo(crystalTableLink.DestinationFields, crystalTableLink.SourceFields);
+                            selectQuery.AddRelation(sourceTable, destinationTable, relationColumnInfo);
+                        }
                     }
                 }
+                Cr.Table singleSelectQueryCrystalTable = selectQueryCrystalTableList.Count == 1 ? selectQueryCrystalTableList[0] : null;
+                result.Add(selectQuery, Tuple.Create(selectQueryColumns, singleSelectQueryCrystalTable));
+            }
+            return result;
+        }
+
+        void FillSelectQueryDefinition(SelectQuery selectQuery, Dictionary<string, Type> selectQueryColumns, HashSet<string> selectQueryDisplayColumnNames, Cr.Table crystalTable, Func<Cr.Table, DatabaseFieldDefinition, bool> columnsFilter = null) {
+            DataAccess.Sql.Table table = selectQuery.AddTable(crystalTable.Name);
+            foreach(DatabaseFieldDefinition crystalTableColumn in crystalTable.Fields) {
+                if(columnsFilter?.Invoke(crystalTable, crystalTableColumn) == false
+                    || (columnsFilter == null && !SelectFullTableSchema.GetValueOrDefault(DefaultSelectFullTableSchema) && crystalTableColumn.UseCount == 0))
+                    continue;
+                string dispayColumnName = crystalTableColumn.Name;
+                string crystalColumnAlias = null;
+                if(selectQueryDisplayColumnNames.Contains(dispayColumnName)) {
+                    crystalColumnAlias = crystalTableColumn.TableName + "_" + crystalTableColumn.Name;
+                    dispayColumnName = crystalColumnAlias;
+                }
+                selectQuery.SelectColumn(table, crystalTableColumn.Name, crystalColumnAlias);
+                selectQueryColumns.Add(dispayColumnName, CrystalTypeConverter.ConvertToType(crystalTableColumn.ValueType));
+                selectQueryDisplayColumnNames.Add(dispayColumnName);
+                string crystalBindingPath = crystalTable.Name + "." + crystalTableColumn.Name;
+                if(!sqlSelectQueryColumnsByCrystalTableColumns.ContainsKey(crystalBindingPath))
+                    sqlSelectQueryColumnsByCrystalTableColumns.Add(crystalBindingPath, selectQuery.Name + "." + dispayColumnName);
+            }
+        }
+
+        Tuple<StoredProcQuery, Dictionary<string, Type>> GenerateStoredProcQueryDefinition(Cr.Table crystalTable, Func<Cr.Table, DatabaseFieldDefinition, bool> columnsFilter = null) {
+            var result = new StoredProcQuery {
+                StoredProcName = crystalTable.Location.Split(new[] { ';' }, 2)[0],
+                Name = NamingMapper.GenerateSafeName<StoredProcQuery>(crystalTable.Name)
+            };
+            var rasProcedure = GetRasObject<CrData.ISCRProcedure>(crystalTable);
+            crystalStoredProceduresByStoredProcQueries.Add(result, crystalTable);
+            var columns = new Dictionary<string, Type>();
+            foreach(DatabaseFieldDefinition crystalTableColumn in crystalTable.Fields) {
+                if(columnsFilter != null && !columnsFilter(crystalTable, crystalTableColumn))
+                    continue;
+                string dispayColumnName = crystalTableColumn.Name;
+                columns.Add(dispayColumnName, CrystalTypeConverter.ConvertToType(crystalTableColumn.ValueType));
+                sqlSelectQueryColumnsByCrystalTableColumns[crystalTable.Name + "." + crystalTableColumn.Name] = result.Name + "." + dispayColumnName;
             }
             return Tuple.Create(result, columns);
+        }
+
+        string GenerateDataMember(SqlDataSource sqlDataSource, Cr.Tables crystalTables, string crystalTableName, string[] crystalColumnNames) {
+            Cr.Table crystalTable = crystalTables[crystalTableName];
+            KeyValuePair<SqlQuery, Tuple<Dictionary<string, Type>, Cr.Table>> dataSourceQueryDefinition = GenerateQueryDefinitions(
+                    new List<Cr.Table> { crystalTable },
+                    columnsFilter: (_, x) => crystalColumnNames.Contains(x.Name, StringComparer.OrdinalIgnoreCase))
+                .FirstOrDefault();
+            System.Diagnostics.Debug.Assert(dataSourceQueryDefinition.Key != null);
+            SqlQuery sqlQuery = dataSourceQueryDefinition.Key;
+            if(dataSourceQueryDefinition.Value.Item2 != null)
+                sqlQueriesByCrystalTableNames[dataSourceQueryDefinition.Value.Item2.Name] = Tuple.Create(sqlDataSource, sqlQuery);
+            FieldListResultSchemaProvider.AppendViewToSchema(sqlDataSource, sqlQuery.Name, dataSourceQueryDefinition.Value.Item1);
+            sqlDataSource.Queries.Add(sqlQuery);
+            return sqlQuery.Name;
         }
 
         static RelationColumnInfo[] GenerateRelationColumnInfo(DatabaseFieldDefinitions destinationFields, DatabaseFieldDefinitions sourceFields) {
@@ -571,7 +688,7 @@ namespace DevExpress.XtraReports.Import {
             return result;
         }
 
-        static DataConnectionParametersBase GenerateConnectionParameters(ConnectionInfo connectionInfo) {
+        static DataConnectionParametersBase GenerateConnectionParameters(ConnectionInfo connectionInfo, string originalReportPath = null) {
             NameValuePairs2 attributes = connectionInfo.Attributes.Collection;
             var databaseDll = attributes.Lookup(DbConnectionAttributes.CONNINFO_DATABASE_DLL) as string;
             if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADO || databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADOPLUS) {
@@ -593,36 +710,77 @@ namespace DevExpress.XtraReports.Import {
                 }
             } else if(databaseDll == "crdb_oracle.dll") {
                 return new OracleConnectionParameters(connectionInfo.ServerName, connectionInfo.UserID, connectionInfo.Password);
-            } else {
-                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseDllNotSupported_Format, databaseDll));
+            } else if(databaseDll == "crdb_fielddef.dll") {
+                string optionalSearchDirectory = originalReportPath != null ? Path.GetDirectoryName(originalReportPath) : null;
+                string ttxXmlFilePath = GenerateTtxXmlFilePath(connectionInfo.ServerName, optionalSearchDirectory);
+                if(!string.IsNullOrEmpty(ttxXmlFilePath))
+                    return new XmlFileConnectionParameters(ttxXmlFilePath);
             }
+            Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseDllNotSupported_Format, databaseDll));
             return null;
         }
 
-        void ConvertCalcFields(FormulaFieldDefinitions crystalfields) {
-            if(crystalfields.Count > 0) {
-                Tracer.TraceWarning(NativeSR.TraceSource, Messages.Warning_Formula_NotSupported);
+        static string GenerateTtxXmlFilePath(string originalFilePath, string optionalSearchDirectory = null) {
+            if(string.IsNullOrEmpty(originalFilePath))
+                return null;
+            const string TtxFileExt = ".ttx";
+            if(!originalFilePath.EndsWith(TtxFileExt, StringComparison.OrdinalIgnoreCase))
+                return null;
+            originalFilePath = originalFilePath.Substring(0, originalFilePath.Length - TtxFileExt.Length) + "_ttx.xml";
+            if(File.Exists(originalFilePath))
+                return originalFilePath;
+            if(!string.IsNullOrEmpty(optionalSearchDirectory)) {
+                string fileName = Path.GetFileName(originalFilePath);
+                string optionalSearchFilePath = Path.Combine(optionalSearchDirectory, fileName);
+                if(File.Exists(optionalSearchFilePath))
+                    return optionalSearchFilePath;
             }
-            object dataSource = TargetReport.DataSource;
-            List<SqlQuery> allQueries = TargetReport.ComponentStorage.OfType<SqlDataSource>().SelectMany(x => x.Queries).ToList();
-            string dataMember = allQueries.Count == 1 ? allQueries[0].Name : string.Empty;
-            CalculatedField[] calcFields = crystalfields.Cast<FormulaFieldDefinition>()
-                .Select(x => new CalculatedField {
-                    Name = x.Name,
-                    DataSource = dataSource,
-                    DataMember = dataMember,
-                    Expression = !string.IsNullOrEmpty(x.Text) ? string.Format("Iif(True, '', '{0}')", x.Text.Replace("'", "''")) : string.Empty,
-                    FieldType = CrystalTypeConverter.ConvertToFieldType(x.ValueType)
-                })
-                .Select(x => NamingMapper.GenerateAndAssignXRControlName(x, x.Name))
-                .ToArray();
-            TargetReport.CalculatedFields.AddRange(calcFields);
+            return originalFilePath;
         }
 
-        void ConvertReportParameters(ParameterFields parameterFields, Tables crystalDatabaseTables) {
+        void ConvertCalculatedFields(FormulaFieldDefinitions crystalFormulae) {
+            List<SqlQuery> allQueries = TargetReport.ComponentStorage
+                .OfType<SqlDataSource>()
+                .SelectMany(x => x.Queries)
+                .ToList();
+            string dataMember = allQueries.Count == 1 ? allQueries[0].Name : string.Empty;
+            foreach(FormulaFieldDefinition crystalFormula in crystalFormulae) {
+                Formula formula;
+                var result = new CalculatedField {
+                    DataMember = dataMember,
+                    FieldType = CrystalTypeConverter.ConvertToFieldType(crystalFormula.ValueType)
+                };
+                GenerateName(result, crystalFormula.Name);
+                result.Expression = ExpressionFactory.CreateExpression(
+                    crystalFormula.Text,
+                    sqlSelectQueryColumnsByCrystalTableColumns,
+                    GetCalculatedFieldByFormula,
+                    result.Name,
+                    dataMember,
+                    out formula);
+                calculatedFieldsByFormulae[crystalFormula.Name] = Tuple.Create(result, formula);
+                TargetReport.CalculatedFields.Add(result);
+            }
+        }
+
+        void GenerateName(CalculatedField calculatedField, string formulaName) {
+            string name = NamingMapper.GenerateSafeName<CalculatedField>(
+                formulaName,
+                x=> DictionaryContainsValueIgnoreCase(sqlSelectQueryColumnsByCrystalTableColumns, EmbeddedFieldsHelper.GetDataMember(calculatedField.DataMember, x)));
+            NamingMapper.GenerateAndAssignXRControlName(calculatedField, name);
+        }
+
+        static bool DictionaryContainsValueIgnoreCase<T>(IDictionary<T, string> dictionary, string value) {
+            foreach(var dictioanaryValue in dictionary.Values)
+                if(string.Equals(dictioanaryValue, value, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            return false;
+        }
+
+        void ConvertReportParameters(ParameterFields parameterFields, Cr.Tables crystalDatabaseTables) {
             IEnumerable<KeyValuePair<string, Parameter>> parametersByName = parameterFields
                 .Cast<ParameterField>()
-                .Where(x => x.ReportParameterType == CrystalDecisions.Shared.ParameterType.ReportParameter)
+                .Where(x => x.ReportParameterType == CrystalDecisions.Shared.ParameterType.ReportParameter || x.ReportParameterType == CrystalDecisions.Shared.ParameterType.StoreProcedureParameter)
                 .Select(x => ConvertParameter(x, crystalDatabaseTables));
             foreach(KeyValuePair<string, Parameter> pair in parametersByName) {
                 parametersByOriginalNames[pair.Key] = pair.Value;
@@ -630,8 +788,53 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
+        void AssignStoredProcedureParameters() {
+            foreach(KeyValuePair<StoredProcQuery, object> pair in crystalStoredProceduresByStoredProcQueries) {
+                StoredProcQuery storedProcQuery = pair.Key;
+                var rasProcedure = (CrData.ISCRProcedure)pair.Value;
+                foreach(CrData.ISCRField crystalParameter in rasProcedure.Parameters) {
+                    Parameter parameter;
+                    if(!parametersByOriginalNames.TryGetValue(crystalParameter.Name, out parameter)) {
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_DataSourceSP_ParameterNotFound_Format, crystalParameter.Name, storedProcQuery.Name));
+                        continue;
+                    }
+                    storedProcQuery.Parameters.Add(new QueryParameter(
+                        crystalParameter.Name,
+                        typeof(DataAccess.Expression),
+                        new DataAccess.Expression("?" + parameter.Name, parameter.Type)));
+                }
+            }
+        }
+
+        void PostConvertCalculatedFields() {
+            foreach(KeyValuePair<string, Tuple<CalculatedField, Formula>> pair in calculatedFieldsByFormulae) {
+                Formula formula = pair.Value.Item2;
+                if(formula == null || ReferenceEquals(formula.Statement, null))
+                    continue;
+                string formulaName = pair.Key;
+                CalculatedField calculatedField = pair.Value.Item1;
+                try {
+                    CriteriaOperator convertedStatement = formula.Statement.Accept(new FormulaConverter(
+                        calculatedField,
+                        formula.Formulae,
+                        GetCalculatedFieldByFormula,
+                        sqlSelectQueryColumnsByCrystalTableColumns,
+                        parametersByOriginalNames));
+                    calculatedField.Expression = convertedStatement.ToString();
+                } catch(Exception e) {
+                    Tracer.TraceError(NativeSR.TraceSource, e);
+                }
+            }
+        }
+
+        CalculatedField GetCalculatedFieldByFormula(string formula) {
+            Tuple<CalculatedField, Formula> value;
+            if(calculatedFieldsByFormulae.TryGetValue(formula, out value))
+                return value.Item1;
+            return null;
+        }
+
         void ConvertGroups(ReportDocument crystalReport) {
-            //ClearGroupBands();
             var filePath = !crystalReport.IsSubreport
                 ? crystalReport.FilePath
                 : string.Empty;
@@ -730,14 +933,14 @@ namespace DevExpress.XtraReports.Import {
                 XRControl control = null;
                 switch(reportObject.Kind) {
                     case ReportObjectKind.FieldObject:
-                        control = ConvertFieldObject(TargetReport, band, (FieldObject)reportObject);
+                        control = ConvertFieldObject(band, (FieldObject)reportObject);
                         break;
                     case ReportObjectKind.FieldHeadingObject:
                     case ReportObjectKind.TextObject:
                         control = ConvertTextObject(band, (TextObject)reportObject);
                         break;
                     case ReportObjectKind.BlobFieldObject:
-                        control = ConvertBlobFieldObject(TargetReport, band, (BlobFieldObject)reportObject);
+                        control = ConvertBlobFieldObject(band, (BlobFieldObject)reportObject);
                         break;
                     case ReportObjectKind.PictureObject:
                         control = CreatePictureObject(band, (PictureObject)reportObject, crystalReportFileName, i);
@@ -800,14 +1003,14 @@ namespace DevExpress.XtraReports.Import {
             ConvertSectionControls(band, section, crystalReportFileName);
         }
 
-        XRControl ConvertFieldObject(XtraReport targetReport, Band band, FieldObject fieldObject) {
+        XRControl ConvertFieldObject(Band band, FieldObject fieldObject) {
             XRControl control = null;
             FieldDefinition fieldDefinition = fieldObject.DataSource;
             if(fieldDefinition != null) {
                 switch(fieldDefinition.Kind) {
                     case FieldKind.DatabaseField:
                         control = CreateXRControl<XRLabel>(band, fieldObject.Name);
-                        AddDataBinding(targetReport, control, "Text", fieldDefinition.FormulaName);
+                        AddDataBinding(control, "Text", fieldDefinition.FormulaName);
                         break;
                     case FieldKind.ParameterField:
                         control = CreateXRControl<XRLabel>(band, fieldObject.Name);
@@ -845,22 +1048,22 @@ namespace DevExpress.XtraReports.Import {
                         break;
                     case FieldKind.GroupNameField:
                         control = CreateXRControl<XRLabel>(band, fieldObject.Name);
-                        AddDataBinding(targetReport, control, "Text", fieldDefinition.FormulaName, isGrouping: true);
+                        AddDataBinding(control, "Text", fieldDefinition.FormulaName, isGrouping: true);
                         break;
                     case FieldKind.SummaryField:
                         var summaryDefinition = (SummaryFieldDefinition)fieldObject.DataSource;
-                        control = GenerateSummarySafe(targetReport, band, fieldObject.Name, summaryDefinition.Operation, false, SummaryRunning.Report, summaryDefinition.SummarizedField.FormulaName);
+                        control = GenerateSummarySafe(band, fieldObject.Name, summaryDefinition.Operation, false, SummaryRunning.Report, summaryDefinition.SummarizedField.FormulaName);
                         break;
                     case FieldKind.RunningTotalField:
                         var runningTotalField = (RunningTotalFieldDefinition)fieldObject.DataSource;
                         SummaryRunning summaryRunning = runningTotalField.EvaluationConditionType == RunningTotalCondition.OnChangeOfGroup
                             ? SummaryRunning.Group
                             : SummaryRunning.Report;
-                        control = GenerateSummarySafe(targetReport, band, fieldObject.Name, runningTotalField.Operation, true, summaryRunning, runningTotalField.SummarizedField.FormulaName);
+                        control = GenerateSummarySafe(band, fieldObject.Name, runningTotalField.Operation, true, summaryRunning, runningTotalField.SummarizedField.FormulaName);
                         break;
                     case FieldKind.FormulaField:
                         control = CreateXRControl<XRLabel>(band, fieldDefinition.Name);
-                        AddDataBinding(targetReport, control, "Text", fieldObject.DataSource.FormulaName, isFormula: true);
+                        AddDataBinding(control, "Text", fieldObject.DataSource.FormulaName, isFormula: true);
                         break;
                     default:
                         Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_FieldObject_Kind_NotSupported_Format, fieldObject.Name, fieldDefinition.Kind));
@@ -873,20 +1076,19 @@ namespace DevExpress.XtraReports.Import {
                 control.Text = Messages.Control_Untranslated;
             }
 
-            //fieldObject.FieldFormat;
             control.ForeColor = fieldObject.Color;
             control.Font = (Font)fieldObject.Font.Clone();
             return control;
         }
 
-        XRControl ConvertBlobFieldObject(XtraReport targetReport, Band band, BlobFieldObject fieldObject) {
+        XRControl ConvertBlobFieldObject(Band band, BlobFieldObject fieldObject) {
             XRControl control = null;
             FieldDefinition fieldDefinition = fieldObject.DataSource;
             if(fieldDefinition != null) {
                 switch(fieldDefinition.Kind) {
                     case FieldKind.DatabaseField:
                         control = CreateXRControl<XRPictureBox>(band, fieldObject.Name);
-                        AddDataBinding(targetReport, control, "Image", fieldDefinition.FormulaName);
+                        AddDataBinding(control, "Image", fieldDefinition.FormulaName);
                         break;
                     default:
                         Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_FieldObject_Kind_NotSupported_Format, fieldObject.Name, fieldDefinition.Kind));
@@ -919,12 +1121,12 @@ namespace DevExpress.XtraReports.Import {
             return PrintHelper.GetPrintedBmp(crystalReportFileName, crystalPicture, indexOnSection);
         }
 
-        XRLabel GenerateSummarySafe(XtraReport targetReport, Band band, string controlName, SummaryOperation crystalSummaryOperation, bool useRunningSummary, SummaryRunning summaryRunning, string crystalFormulaName) {
+        XRLabel GenerateSummarySafe(Band band, string controlName, SummaryOperation crystalSummaryOperation, bool useRunningSummary, SummaryRunning summaryRunning, string crystalFormulaName) {
             XRLabel result = null;
             SummaryFunc runningSummaryFunc;
             if(CrystalTypeConverter.TryConvertSummaryFunc(crystalSummaryOperation, useRunningSummary, out runningSummaryFunc)) {
                 result = CreateXRControl<XRLabel>(band, controlName, x => x.Summary = new XRSummary(summaryRunning, runningSummaryFunc, string.Empty));
-                AddDataBinding(targetReport, result, "Text", crystalFormulaName);
+                AddDataBinding(result, "Text", crystalFormulaName);
             } else {
                 Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_SummaryOperation_NotSupported_Format, controlName, crystalSummaryOperation));
             }
@@ -979,8 +1181,10 @@ namespace DevExpress.XtraReports.Import {
         }
 
         void SetControlBorder(XRControl control, Border border) {
-            control.BackColor = border.BackgroundColor;
-            control.BorderColor = border.BorderColor;
+            if(border.BackgroundColor != Color.White)
+                control.BackColor = border.BackgroundColor;
+            if(border.BorderColor != Color.Black)
+                control.BorderColor = border.BorderColor;
 
             if(border.BottomLineStyle != LineStyle.NoLine)
                 control.Borders |= BorderSide.Bottom;
@@ -993,7 +1197,8 @@ namespace DevExpress.XtraReports.Import {
         }
 
         void ConvertReportObjectProperties(XRControl control, ReportObject reportObject) {
-            SetControlName(control, reportObject.Name);
+            if(string.IsNullOrEmpty(control.Name))
+                SetControlName(control, reportObject.Name);
             SetParentStyleUsing(control, false);
 
             control.LeftF = TwipsToHOIF(reportObject.Left);
@@ -1004,33 +1209,42 @@ namespace DevExpress.XtraReports.Import {
                 control.WidthF = TwipsToHOIF(reportObject.Width);
             }
             control.HeightF = TwipsToHOIF(reportObject.Height);
-            control.BackColor = reportObject.Border.BackgroundColor;
             control.CanGrow = reportObject.ObjectFormat.EnableCanGrow;
             control.Visible = !reportObject.ObjectFormat.EnableSuppress;
 
             control.TextAlignment = CrystalTypeConverter.GetTextAlignment(reportObject.ObjectFormat.HorizontalAlignment);
             SetControlBorder(control, reportObject.Border);
 
-            string navigationUrl = null;
+            string navigationUrl;
             if(TryGetNavigationUrl(reportObject.ObjectFormat, out navigationUrl)) {
                 control.NavigateUrl = navigationUrl;
             }
         }
 
-        void AddDataBinding(XtraReport targetReport, XRControl control, string property, string crystalFormulaName, bool isGrouping = false, bool isFormula = false) {
+        void AddDataBinding(XRControl control, string property, string crystalFormulaName, bool isGrouping = false, bool isFormula = false) {
+            string optimizedDataMember = GetActualDataMember(crystalFormulaName, control.Name, isGrouping, isFormula);
+            control.DataBindings.Add(property, TargetReport.DataSource, optimizedDataMember);
+        }
+
+        string GetActualDataMember(string crystalFormulaName, string controlName, bool isGrouping = false, bool isFormula = false) {
             string dataMember = crystalFormulaName;
             if(isGrouping)
                 dataMember = dataMember.Replace("GroupName ", string.Empty).Trim('(', ')');
             dataMember = dataMember.Trim('{', '}');
-            if(isFormula)
-                dataMember = dataMember.TrimStart('@');
-            var parts = dataMember.Split(DotSeparator, 2);
-            string optimizedDataMember = parts.Length < 2
-                ? dataMember
-                : parts[1];
-            var dataMemberPrefix = string.IsNullOrEmpty(targetReport.DataMember) ? string.Empty : targetReport.DataMember + ".";
-            optimizedDataMember = dataMemberPrefix + optimizedDataMember;
-            control.DataBindings.Add(property, targetReport.DataSource, optimizedDataMember);
+            string resultDataMember;
+            if(isFormula) {
+                string formualName = dataMember.TrimStart('@');
+                CalculatedField calculatedField = GetCalculatedFieldByFormula(formualName);
+                if(calculatedField == null)
+                    throw new InvalidOperationException(string.Format(Messages.Warning_CalculatedField_FormulaNotFound_Format, formualName, controlName));
+                return EmbeddedFieldsHelper.GetDataMember(calculatedField.DataMember, calculatedField.Name);
+            } else if(sqlSelectQueryColumnsByCrystalTableColumns.TryGetValue(dataMember, out resultDataMember))
+                return resultDataMember;
+            string[] parts = dataMember.Split(DotSeparator, 2);
+            resultDataMember = parts.Length == 2
+                ? parts[1]
+                : dataMember;
+            return EmbeddedFieldsHelper.GetDataMember(TargetReport.DataMember, resultDataMember);
         }
 
         void AddParameterBinding(XRControl control, FieldDefinition fieldDefinition) {
@@ -1044,58 +1258,54 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
-        string GetOrGenerateDataMember(SqlDataSource dataSource, Cr.Table crystalTable, string columnName) {
-            string crystalTableName = crystalTable.Name;
-            Tuple<SqlDataSource, string> key = Tuple.Create(dataSource, crystalTableName);
-            SelectQuery selectQuery = null;
-            if(!singleQueriesByDataSourcesAndTables.TryGetValue(key, out selectQuery)) {
-                selectQuery = SelectQueryFluentBuilder
-                    .AddTable(crystalTableName)
-                    .SelectColumn(columnName)
-                    .Build(crystalTableName);
-                dataSource.Queries.Add(selectQuery);
-                singleQueriesByDataSourcesAndTables.Add(key, selectQuery);
-                DatabaseFieldDefinition crystalColumn = crystalTable.Fields.Cast<DatabaseFieldDefinition>().First(x => x.Name == columnName);
-                FieldListResultSchemaProvider.AppendViewToSchema(dataSource, crystalTable.Location, columnName, CrystalTypeConverter.ConvertToType(crystalColumn.ValueType));
-            }
-            return selectQuery.Name;
-        }
-
         KeyValuePair<string, Parameter> ConvertParameter(ParameterField crystalParameter, Tables crystalDatabaseTables) {
-            Type xrParameterType;
-            if(!CrystalTypeConverter.TryGetXRParameterType(crystalParameter.ParameterValueType, out xrParameterType)) {
-                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_ReportParameter_NotSupported_Format, crystalParameter.Name));
-                xrParameterType = typeof(string);
-            }
             var result = new Parameter {
-                Type = xrParameterType,
+                Type = CrystalTypeConverter.GetXRParameterType(crystalParameter.ParameterValueType, crystalParameter.Name),
                 Visible = crystalParameter.ParameterFieldUsage2.HasFlag(ParameterFieldUsage2.ShowOnPanel),
                 Description = crystalParameter.PromptText,
                 MultiValue = crystalParameter.EnableAllowMultipleValue,
-                Value = GetXRParameterValue(crystalParameter)
+                Value = GetXRParameterValue(crystalParameter),
+                AllowNull = crystalParameter.EnableNullValue
             };
-            NamingMapper.GenerateAndAssignXRControlName(result, crystalParameter.Name);
+            string parameterName = crystalParameter.Name.TrimStart('@');
+            NamingMapper.GenerateAndAssignXRControlName(result, parameterName);
             if(crystalParameter.DefaultValues != null && crystalParameter.DefaultValues.Count > 0) {
-                var settings = new StaticListLookUpSettings();
-                IEnumerable<LookUpValue> lookupValues = crystalParameter.DefaultValues
-                    .OfType<ParameterDiscreteValue>()
-                    .Select(x => new LookUpValue(x.Value, x.Description));
-                settings.LookUpValues.AddRange(lookupValues);
-                result.LookUpSettings = settings;
+                if(crystalParameter.DefaultValues.Count == 1 && crystalParameter.DefaultValues[0] is ParameterDiscreteValue) {
+                    result.Value = ((ParameterDiscreteValue)crystalParameter.DefaultValues[0]).Value;
+                } else {
+                    var settings = new StaticListLookUpSettings();
+                    IEnumerable<LookUpValue> lookupValues = crystalParameter.DefaultValues
+                        .OfType<ParameterDiscreteValue>()
+                        .Select(x => new LookUpValue(x.Value, x.Description));
+                    settings.LookUpValues.AddRange(lookupValues);
+                    result.LookUpSettings = settings;
+                }
             } else if(crystalParameter.Attributes.ContainsKey("FieldID")) {
                 var fieldId = (string)crystalParameter.Attributes["FieldID"];
                 string[] parts = fieldId.Split(DotSeparator, 2);
                 string crystalTableName = parts[0];
-                SqlDataSource sqlDataSource = sqlDataSourcesByTableNames[crystalTableName];
-                Cr.Table crystalTable = crystalDatabaseTables.Cast<Cr.Table>().First(x => x.Name == crystalTableName);
-                string dataMember = GetOrGenerateDataMember(sqlDataSource, crystalTable, parts[1]);
-                var settings = new DynamicListLookUpSettings {
-                    DataSource = sqlDataSource,
-                    DataMember = dataMember,
-                    ValueMember = parts[1],
-                    DisplayMember = parts[1]
-                };
-                result.LookUpSettings = settings;
+                Tuple<SqlDataSource, SqlQuery> queryDefenition;
+                sqlQueriesByCrystalTableNames.TryGetValue(crystalTableName, out queryDefenition);
+                if(queryDefenition != null && parts.Length == 2) {
+                    string dataMember = queryDefenition.Item2?.Name
+                        ?? GenerateDataMember(queryDefenition.Item1, crystalDatabaseTables, crystalTableName, new[] { parts[1] });
+                    string valueMember = parts[1];
+                    string mappedQueryColumnName;
+                    if(sqlSelectQueryColumnsByCrystalTableColumns.TryGetValue(fieldId, out mappedQueryColumnName)) {
+                        string[] mappedQueryColumnNameArray = mappedQueryColumnName.Split(DotSeparator, 2);
+                        if(mappedQueryColumnNameArray.Length == 2)
+                            valueMember = mappedQueryColumnNameArray[1];
+                    }
+                    var settings = new DynamicListLookUpSettings {
+                        DataSource = queryDefenition.Item1,
+                        DataMember = dataMember,
+                        ValueMember = valueMember,
+                        DisplayMember = valueMember
+                    };
+                    result.LookUpSettings = settings;
+                } else {
+                    Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_ParameterLookups_CanNotFindTable_Format, crystalTableName, result));
+                }
             }
             return new KeyValuePair<string, Parameter>(crystalParameter.Name, result);
         }
@@ -1125,6 +1335,11 @@ namespace DevExpress.XtraReports.Import {
             }
             return false;
         }
+    }
+
+    public enum UnrecognizedFunctionBehavior {
+        InsertWarning,
+        Ignore
     }
 }
 #endif

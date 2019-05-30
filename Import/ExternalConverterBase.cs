@@ -20,32 +20,44 @@ namespace DevExpress.XtraReports.Import {
             }
 
             public T GenerateAndAssignXRControlName<T>(T component, string originalName = null) {
-                string newName = GenerateSafeNameCore<T>(originalName, rootComponent, xrnames.Contains);
+                string newName = GenerateSafeNameCore(typeof(T), originalName, rootComponent, xrnames.Contains);
                 SetName(component, newName);
                 xrnames.Add(newName);
                 return component;
             }
 
-            public string GenerateSafeName<T>(string originalName = null) {
-                return GenerateSafeNameCore<T>(originalName);
+            public string GenerateSafeName<T>(string originalName = null, Predicate<string> isNameExists = null) {
+                return GenerateSafeNameCore(typeof(T), originalName, isNameExists);
             }
 
-            static string GenerateSafeNameCore<T>(string originalName = null, object rootComponent = null, Predicate<string> isNameExists = null) {
+            public string GenerateSafeName(Type type, string originalName = null, Predicate<string> isNameExists = null) {
+                return GenerateSafeNameCore(type, originalName, isNameExists);
+            }
+
+            static string GenerateSafeNameCore(Type type, string originalName = null, object rootComponent = null, Predicate<string> isNameExists = null) {
                 bool hasOriginalName = !string.IsNullOrEmpty(originalName);
-                if(hasOriginalName && originalName.Contains(" ")) {
-                    originalName = originalName.Replace(' ', '_');
+                if(hasOriginalName) {
+                    originalName = originalName
+                        .Replace(' ', '_')
+                        .Replace(',', '_')
+                        .Replace('/', '_')
+                        .Replace(';', '_')
+                        .Replace('<', '_')
+                        .Replace('>', '_');
                 }
-                string result;
-                if(hasOriginalName && IsValidName(originalName, rootComponent) && (isNameExists == null || !isNameExists(originalName))) {
-                    result = originalName;
-                } else {
-                    string baseName = XRNameCreationService.GetDefaultBaseName(typeof(T));
-                    int number = 1;
-                    while(isNameExists != null && isNameExists(baseName + number.ToString()))
-                        number++;
-                    result = baseName + number;
+                if(hasOriginalName) {
+                    for(int i = 0; i < 0xffff; i++) {
+                        string suffix = i == 0 ? "" : "_" + i.ToString();
+                        string newName = originalName + suffix;
+                        if(IsValidName(newName, rootComponent) && (isNameExists == null || !isNameExists(newName)))
+                            return newName;
+                    }
                 }
-                return result;
+                string baseName = XRNameCreationService.GetDefaultBaseName(type);
+                int number = 1;
+                while(isNameExists != null && isNameExists(baseName + number.ToString()))
+                    number++;
+                return baseName + number;
             }
 
             static bool IsValidName(string name, object rootComponent = null) {

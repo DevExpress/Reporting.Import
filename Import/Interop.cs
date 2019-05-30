@@ -30,77 +30,76 @@ namespace DevExpress.XtraReports.Import {
         protected abstract _Section get_Section(object Index);
         protected abstract GroupLevel get_GroupLevel(int Index);
 
-
+        bool getGroupLevelUseReflection;
         public GroupLevel GetGroupLevel(int index) {
-            try {
-                return get_GroupLevel(index);
-                //return SourceReport[index];
-            } catch {
-                try {
-                    return (GroupLevel)GetProperty("GroupLevel", new object[] { index });
-                } catch {
-                    return null;
-                }
-            }
+            return GetIndexedProperty(get_GroupLevel, "GroupLevel", index, ref getGroupLevelUseReflection);
         }
+        bool getSectionUseReflection;
         public _Section GetSection(object index) {
-            try {
-                return get_Section(index);
-            } catch {
-                try {
-                    return (_Section)GetProperty("Section", new object[] { index });
-                } catch {
-                    return null;
-                }
-            }
+            return GetIndexedProperty(get_Section, "Section", index, ref getSectionUseReflection);
         }
+        bool getReportPictureTypeUseReflection;
         public byte GetReportPictureType() {
-            try {
-                return PictureType;
-            } catch {
-                return (byte)GetProperty("PictureType");
-            }
+            return GetProperty(() => PictureType, "PictureType", ref getReportPictureTypeUseReflection);
         }
+        bool getReportPictureDataUseReflection;
         public object GetReportPictureData() {
-            try {
-                return PictureData;
-            } catch {
-                return GetProperty("PictureData");
-            }
+            return GetProperty(() => PictureData, "PictureData", ref getReportPictureDataUseReflection);
         }
+        bool getReportPictureUseReflection;
         public string GetReportPicture() {
-            try {
-                return Picture;
-            } catch {
-                return (string)GetProperty("Picture");
-            }
+            return GetProperty(() => Picture, "Picture", ref getReportPictureUseReflection);
         }
+        bool getRecordSourceUseReflection;
         public string GetRecordSource() {
-            try {
-                return RecordSource;
-            } catch {
-                return (string)GetProperty("RecordSource");
-            }
+            return GetProperty(() => RecordSource, "RecordSource", ref getRecordSourceUseReflection);
         }
+        bool getReportPictureSizeModeUseReflection;
         public byte GetReportPictureSizeMode() {
-            try {
-                return PictureSizeMode;
-            } catch {
-                return (byte)GetProperty("PictureSizeMode");
-            }
+            return GetProperty(() => PictureSizeMode, "PictureSizeMode", ref getReportPictureSizeModeUseReflection);
         }
+        bool getPrintingSettingsUseProperty;
         public object GetPrintingSettings() {
-            try {
-                return PrtMip;
-            } catch {
-                return GetProperty("PrtMip");
-            }
+            return GetProperty(() => PrtMip, "PrtMip", ref getPrintingSettingsUseProperty);
         }
         object GetProperty(string name) {
-            return GetProperty(name, new object[] { });
+            return GetProperty(name, new object[0]);
+        }
+        object GetProperty(string name, object arg) {
+            return GetProperty(name, new object[] { arg });
         }
         object GetProperty(string name, object[] args) {
             return SourceReport.GetType().InvokeMember(name, BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public, null, SourceReport, args);
+        }
+        TResult GetIndexedProperty<TArg, TResult>(Func<TArg, TResult> getValue, string propertyName, TArg arg, ref bool useReflection) {
+            if(useReflection) {
+                try {
+                    return (TResult)GetProperty(propertyName, arg);
+                } catch {
+                    return default(TResult);
+                }
+            }
+            try {
+                return getValue(arg);
+            } catch {
+                useReflection = true;
+                return GetIndexedProperty(getValue, propertyName, arg, ref useReflection);
+            }
+        }
+        TResult GetProperty<TResult>(Func<TResult> getValue, string propertyName, ref bool useReflection) {
+            if(useReflection) {
+                try {
+                    return (TResult)GetProperty(propertyName);
+                } catch {
+                    return default(TResult);
+                }
+            }
+            try {
+                return getValue();
+            } catch {
+                useReflection = true;
+                return GetProperty(getValue, propertyName, ref useReflection);
+            }
         }
     }
     public class AccessReport : AccessReportBase {
@@ -138,10 +137,10 @@ namespace DevExpress.XtraReports.Import {
         protected override byte PictureType { get { return report.PictureType; } }
         protected override _Section get_Section(object Index) {
             return report.get_Section(Index);
-        }
+    	}
         protected override GroupLevel get_GroupLevel(int Index) {
             return report.get_GroupLevel(Index);
-        }
+    	}
     }
 }
 
@@ -266,7 +265,7 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
         bool Visible { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x864)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x864)] set; }
 
         [DispId(0x8a7)]
-        _CurrentProject CurrentProject { [return: MarshalAs(UnmanagedType.Interface)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x8a7)] get; }
+        object CurrentProject { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x8a7)] get; }
 
         [DispId(0x8a8)]
         _CurrentData CurrentData { [return: MarshalAs(UnmanagedType.Interface)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x8a8)] get; }
@@ -277,11 +276,6 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
         AllObjects AllTables { [return: MarshalAs(UnmanagedType.Interface)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x8b1)] get; }
         [DispId(0x8b2)]
         AllObjects AllQueries { [return: MarshalAs(UnmanagedType.Interface)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x8b2)] get; }
-    }
-    [ComImport, Guid("9212BA71-3E79-11D1-98BD-006008197D41"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
-    public interface _CurrentProject {
-        [DispId(0x8ac)]
-        AllObjects AllReports { [return: MarshalAs(UnmanagedType.Interface)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x8ac)] get; }
     }
     [ComImport, Guid("DDBD4001-44D5-11D1-98C0-006008197D41"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
     public interface AllObjects {
