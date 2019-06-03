@@ -653,7 +653,7 @@ namespace DevExpress.XtraReports.Import {
                 Name = NamingMapper.GenerateSafeName<StoredProcQuery>(crystalTable.Name)
             };
             var rasProcedure = GetRasObject<CrData.ISCRProcedure>(crystalTable);
-            crystalStoredProceduresByStoredProcQueries.Add(result, crystalTable);
+            crystalStoredProceduresByStoredProcQueries.Add(result, rasProcedure);
             var columns = new Dictionary<string, Type>();
             foreach(DatabaseFieldDefinition crystalTableColumn in crystalTable.Fields) {
                 if(columnsFilter != null && !columnsFilter(crystalTable, crystalTableColumn))
@@ -694,7 +694,7 @@ namespace DevExpress.XtraReports.Import {
             if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADO || databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADOPLUS) {
                 NameValuePairs2 logonProperties = connectionInfo.LogonProperties;
                 var oledbProvider = logonProperties.Lookup("Provider") as string;
-                if(oledbProvider == "SQLOLEDB") {
+                if(oledbProvider == "SQLOLEDB" || oledbProvider == "SQLNCLI11"|| oledbProvider == "SQLNCLI10") {
                     return new MsSqlConnectionParameters(connectionInfo.ServerName, connectionInfo.DatabaseName, connectionInfo.UserID, connectionInfo.Password, connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
                 } else if(oledbProvider == "MSDAORA") {
                     return new OracleConnectionParameters(connectionInfo.ServerName, connectionInfo.UserID, connectionInfo.Password);

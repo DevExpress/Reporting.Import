@@ -141,6 +141,9 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                 case "cdbl":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.ToDouble, parameters);
+                case "chrw":
+                    Assert(parameters.Count == 1);
+                    return new FunctionOperator(FunctionOperatorType.Char, parameters);
             }
             GotUnrecognizedFunctions?.Invoke(name);
             if(allowUnrecognizedFunctions)
