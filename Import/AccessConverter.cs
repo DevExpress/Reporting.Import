@@ -158,7 +158,7 @@ namespace DevExpress.XtraReports.Import {
                 return (string)form.GetType().InvokeMember("Name", BindingFlags.GetProperty | BindingFlags.Instance | BindingFlags.Public, null, form, new object[] { });
             }
         }
-        System.Drawing.Image MakeImage(byte pictureType, object pictureData, string pictureFileName) {
+        System.Drawing.Image MakeImage(object pictureData) {
             byte[] bytes = pictureData as byte[];
             if(bytes == null)
                 return null;
@@ -364,7 +364,7 @@ namespace DevExpress.XtraReports.Import {
             //src.PictureTiling;
             //src.PictureType;
             tgt.Sizing = ToImageSizeMode(src.SizeMode);
-            tgt.Image = MakeImage(src.PictureType, src.PictureData, src.Picture);
+            tgt.Image = MakeImage(src.PictureData);
             tgt.Visible = src.Visible;
             AssignNavigateUrl(tgt, src.Hyperlink);
         }
@@ -474,7 +474,7 @@ namespace DevExpress.XtraReports.Import {
             return header;
         }
 
-        void ConvertGroupFooterSection(AccessInterop.GroupLevel level, int sectionIndex) {
+        void ConvertGroupFooterSection(int sectionIndex) {
             AccessInterop._Section section = AccessReport.GetSection(sectionIndex);
             if(section != null) {
                 GroupFooterBand footer = GetOrCreateBandByType<GroupFooterBand>();
@@ -489,7 +489,7 @@ namespace DevExpress.XtraReports.Import {
                 if(level == null)
                     break;
                 GroupHeaderBand header = ConvertGroupHeaderSection(level, sectionIndex++);
-                ConvertGroupFooterSection(level, sectionIndex++);
+                ConvertGroupFooterSection(sectionIndex++);
                 if(header != null)
                     header.Level = 0;
             }
@@ -560,16 +560,6 @@ namespace DevExpress.XtraReports.Import {
             }
             return null;
         }
-        void ConvertWatermark() {
-            Image img = null;
-            try {
-                img = MakeImage(AccessReport.GetReportPictureType(), AccessReport.GetReportPictureData(), AccessReport.GetReportPicture());
-                if(img != null) {
-                    TargetReport.Watermark.Image = img;
-                    TargetReport.Watermark.ImageViewMode = ToImageViewMode(AccessReport.GetReportPictureSizeMode());
-                }
-            } catch { }
-        }
         void PerformConvert(string fileName, string reportName) {
             PrepareDataSource(fileName);
 
@@ -579,7 +569,6 @@ namespace DevExpress.XtraReports.Import {
                 CursorStorage.SetCursor(Cursors.WaitCursor);
 
                 TargetReport.ReportUnit = ReportUnit.HundredthsOfAnInch;
-                //ConvertWatermark();
                 ConvertPageSettings(AccessReport);
                 ConvertSections();
             } finally {

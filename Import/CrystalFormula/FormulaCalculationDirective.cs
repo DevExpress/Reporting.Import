@@ -1,5 +1,5 @@
 ﻿namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
-    public enum FormulaCalulationDirective {
+    public enum FormulaCalculationDirective {
         WhileReadingRecords,
         WhilePrintingRecords,
     }

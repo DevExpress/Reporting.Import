@@ -7,10 +7,11 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
     public partial class FormulaParser {
         public const string NotSupportedStub = "#NOT_SUPPORTED#";
         CriteriaOperator result;
-        FormulaCalulationDirective directive;
+        FormulaCalculationDirective directive;
         List<OperandParameter> resultParameters = new List<OperandParameter>();
         List<OperandProperty> resultFormulae = new List<OperandProperty>();
         bool allowUnrecognizedFunctions;
+
         public event Action<string> GotUnrecognizedFunctions;
         FormulaParser() { }
         void yyerror(string message) {
@@ -29,8 +30,8 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                 Formulae = parser.resultFormulae,
             };
         }
-        static FormulaCalulationDirective GetDirective(object value) {
-            return (FormulaCalulationDirective)value;
+        static FormulaCalculationDirective GetDirective(object value) {
+            return (FormulaCalculationDirective)value;
         }
         OperandParameter GetParameter(object value) {
             string paramName = (string)value;
@@ -100,9 +101,11 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                 case "isnull":
                     Assert(parameters.Count == 1);
                     return new UnaryOperator(UnaryOperatorType.IsNull, parameters[0]);
+                case "lowercase":
                 case "lcase":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.Lower, parameters);
+                case "uppercase":
                 case "ucase":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.Upper, parameters);
@@ -149,6 +152,9 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(name, parameters);
             return new FunctionOperator(FunctionOperatorType.Iif, new OperandValue(true), new OperandValue(NotSupportedStub), new OperandValue(new FunctionOperator(name, parameters).ToString()));
+        }
+        CriteriaOperator GetSpecialField(object fieldName) {
+            throw new FormulaParserException("Special Fields are not supported.");
         }
         static string GenerateFormatString(CriteriaOperator criteriaOperator) {
             var operandValue = criteriaOperator as OperandValue;

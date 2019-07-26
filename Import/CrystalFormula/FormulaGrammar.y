@@ -22,7 +22,7 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
 %nonassoc ELSE
 %token IF THEN SELECT CASE DEFAULT
 %token ':'
-%token FUNCTION
+%token IDENTIFIER
 %token '(' ')'
 %left OR
 %left AND
@@ -85,7 +85,8 @@ exp:
 	| exp  OP_GE  exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.GreaterOrEqual ); }
 	| exp  '%'  exp						{ $$ = GetPercentExpression((CriteriaOperator)$1, (CriteriaOperator)$3); }
 	| exp  '^'  exp						{ $$ = GetPowerExpression((CriteriaOperator)$1, (CriteriaOperator)$3); }
-	| FUNCTION argumentslist			{ $$ = GetFunctionOperator($1, $2); }
+	| IDENTIFIER argumentslist			{ $$ = GetFunctionOperator($1, $2); }
+	| IDENTIFIER						{ $$ = GetSpecialField($1); }
 	| '-' exp %prec NEG					{ $$ = GetNegativeValue($2); }
 	| '+' exp %prec NEG 				{ $$ = new UnaryOperator( UnaryOperatorType.Plus, (CriteriaOperator)$2 ); }
 	| NOT exp							{ $$ = new UnaryOperator(UnaryOperatorType.Not, (CriteriaOperator)$2); }

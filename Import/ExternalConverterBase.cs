@@ -27,11 +27,11 @@ namespace DevExpress.XtraReports.Import {
             }
 
             public string GenerateSafeName<T>(string originalName = null, Predicate<string> isNameExists = null) {
-                return GenerateSafeNameCore(typeof(T), originalName, isNameExists);
+                return GenerateSafeNameCore(typeof(T), originalName, rootComponent, isNameExists);
             }
 
             public string GenerateSafeName(Type type, string originalName = null, Predicate<string> isNameExists = null) {
-                return GenerateSafeNameCore(type, originalName, isNameExists);
+                return GenerateSafeNameCore(type, originalName, rootComponent, isNameExists);
             }
 
             static string GenerateSafeNameCore(Type type, string originalName = null, object rootComponent = null, Predicate<string> isNameExists = null) {
@@ -44,8 +44,6 @@ namespace DevExpress.XtraReports.Import {
                         .Replace(';', '_')
                         .Replace('<', '_')
                         .Replace('>', '_');
-                }
-                if(hasOriginalName) {
                     for(int i = 0; i < 0xffff; i++) {
                         string suffix = i == 0 ? "" : "_" + i.ToString();
                         string newName = originalName + suffix;

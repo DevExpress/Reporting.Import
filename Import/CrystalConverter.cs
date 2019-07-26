@@ -334,6 +334,29 @@ namespace DevExpress.XtraReports.Import {
                         return typeof(string);
                 }
             }
+
+            public static ConditionType ConvertToConditionType(CrData.CrTableJoinTypeEnum joinType) {
+                switch(joinType) {
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeEqualJoin:
+                        return ConditionType.Equal;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeGreaterOrEqualJoin:
+                        return ConditionType.GreaterOrEqual;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeGreaterThanJoin:
+                        return ConditionType.Greater;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeLessOrEqualJoin:
+                        return ConditionType.LessOrEqual;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeLessThanJoin:
+                        return ConditionType.Less;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeNotEqualJoin:
+                        return ConditionType.NotEqual;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeOuterJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeAdvance:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeLeftOuterJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeRightOuterJoin:
+                    default:
+                        return ConditionType.Equal;
+                }
+            }
         }
 
         static class Interop {
@@ -615,7 +638,11 @@ namespace DevExpress.XtraReports.Import {
                         DataAccess.Sql.Table sourceTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.SourceTable.Location);
                         DataAccess.Sql.Table destinationTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.DestinationTable.Location);
                         if(sourceTable != null && destinationTable != null) {
-                            RelationColumnInfo[] relationColumnInfo = GenerateRelationColumnInfo(crystalTableLink.DestinationFields, crystalTableLink.SourceFields);
+                            var rasTableLink = GetRasObject<CrystalDecisions.ReportAppServer.DataDefModel.ISCRTableLink>(crystalTableLink);
+                            RelationColumnInfo[] relationColumnInfo = GenerateRelationColumnInfo(
+                                crystalTableLink.SourceFields,
+                                crystalTableLink.DestinationFields,
+                                CrystalTypeConverter.ConvertToConditionType(rasTableLink.JoinType));
                             selectQuery.AddRelation(sourceTable, destinationTable, relationColumnInfo);
                         }
                     }
@@ -680,10 +707,10 @@ namespace DevExpress.XtraReports.Import {
             return sqlQuery.Name;
         }
 
-        static RelationColumnInfo[] GenerateRelationColumnInfo(DatabaseFieldDefinitions destinationFields, DatabaseFieldDefinitions sourceFields) {
+        static RelationColumnInfo[] GenerateRelationColumnInfo(DatabaseFieldDefinitions sourceFields, DatabaseFieldDefinitions destinationFields, ConditionType conditionType) {
             var result = sourceFields
                 .Cast<DatabaseFieldDefinition>()
-                .Zip(destinationFields.Cast<DatabaseFieldDefinition>(), (s, d) => new RelationColumnInfo(s.Name, d.Name))
+                .Zip(destinationFields.Cast<DatabaseFieldDefinition>(), (s, d) => new RelationColumnInfo(s.Name, d.Name, conditionType))
                 .ToArray();
             return result;
         }
@@ -691,8 +718,8 @@ namespace DevExpress.XtraReports.Import {
         static DataConnectionParametersBase GenerateConnectionParameters(ConnectionInfo connectionInfo, string originalReportPath = null) {
             NameValuePairs2 attributes = connectionInfo.Attributes.Collection;
             var databaseDll = attributes.Lookup(DbConnectionAttributes.CONNINFO_DATABASE_DLL) as string;
+            NameValuePairs2 logonProperties = connectionInfo.LogonProperties;
             if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADO || databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADOPLUS) {
-                NameValuePairs2 logonProperties = connectionInfo.LogonProperties;
                 var oledbProvider = logonProperties.Lookup("Provider") as string;
                 if(oledbProvider == "SQLOLEDB" || oledbProvider == "SQLNCLI11"|| oledbProvider == "SQLNCLI10") {
                     return new MsSqlConnectionParameters(connectionInfo.ServerName, connectionInfo.DatabaseName, connectionInfo.UserID, connectionInfo.Password, connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
@@ -715,6 +742,8 @@ namespace DevExpress.XtraReports.Import {
                 string ttxXmlFilePath = GenerateTtxXmlFilePath(connectionInfo.ServerName, optionalSearchDirectory);
                 if(!string.IsNullOrEmpty(ttxXmlFilePath))
                     return new XmlFileConnectionParameters(ttxXmlFilePath);
+            } else if(databaseDll == "crdb_odbc.dll" && logonProperties.Lookup("Connection String") as string == "DRIVER=SQL Server") {
+                return new MsSqlConnectionParameters(connectionInfo.ServerName, connectionInfo.DatabaseName, connectionInfo.UserID, connectionInfo.Password, connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
             }
             Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseDllNotSupported_Format, databaseDll));
             return null;
@@ -766,7 +795,7 @@ namespace DevExpress.XtraReports.Import {
         void GenerateName(CalculatedField calculatedField, string formulaName) {
             string name = NamingMapper.GenerateSafeName<CalculatedField>(
                 formulaName,
-                x=> DictionaryContainsValueIgnoreCase(sqlSelectQueryColumnsByCrystalTableColumns, EmbeddedFieldsHelper.GetDataMember(calculatedField.DataMember, x)));
+                x => DictionaryContainsValueIgnoreCase(sqlSelectQueryColumnsByCrystalTableColumns, EmbeddedFieldsHelper.GetDataMember(calculatedField.DataMember, x)));
             NamingMapper.GenerateAndAssignXRControlName(calculatedField, name);
         }
 
@@ -811,7 +840,6 @@ namespace DevExpress.XtraReports.Import {
                 Formula formula = pair.Value.Item2;
                 if(formula == null || ReferenceEquals(formula.Statement, null))
                     continue;
-                string formulaName = pair.Key;
                 CalculatedField calculatedField = pair.Value.Item1;
                 try {
                     CriteriaOperator convertedStatement = formula.Statement.Accept(new FormulaConverter(

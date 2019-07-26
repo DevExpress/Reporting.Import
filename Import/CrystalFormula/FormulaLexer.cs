@@ -368,17 +368,17 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                     break;
                 case "WHILEPRINTINGRECORDS":
                     currentToken = Token.DIRECTIVE;
-                    currentValue = FormulaCalulationDirective.WhilePrintingRecords;
+                    currentValue = FormulaCalculationDirective.WhilePrintingRecords;
                     break;
                 case "WHILEREADINGRECORDS":
                     currentToken = Token.DIRECTIVE;
-                    currentValue = FormulaCalulationDirective.WhileReadingRecords;
+                    currentValue = FormulaCalculationDirective.WhileReadingRecords;
                     break;
                 case "MOD":
                     currentToken = Token.OP_MOD;
                     break;
                 default:
-                    currentToken = Token.FUNCTION;
+                    currentToken = Token.IDENTIFIER;
                     currentValue = str;
                     break;
             }
