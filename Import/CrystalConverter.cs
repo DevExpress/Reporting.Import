@@ -357,6 +357,24 @@ namespace DevExpress.XtraReports.Import {
                         return ConditionType.Equal;
                 }
             }
+            public static Xpo.DB.JoinType ConvertToJoinType(CrData.CrTableJoinTypeEnum joinType) {
+                switch(joinType) {
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeLeftOuterJoin:
+                        return Xpo.DB.JoinType.LeftOuter;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeEqualJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeGreaterOrEqualJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeGreaterThanJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeLessOrEqualJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeLessThanJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeNotEqualJoin:
+                        return Xpo.DB.JoinType.Inner;
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeOuterJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeRightOuterJoin:
+                    case CrData.CrTableJoinTypeEnum.crTableJoinTypeAdvance:
+                    default:
+                        return Xpo.DB.JoinType.Inner;
+                }
+            }
         }
 
         static class Interop {
@@ -635,15 +653,16 @@ namespace DevExpress.XtraReports.Import {
             if(selectQuery.Tables.Count > 0) {
                 if(crystalTableLinks != null) {
                     foreach(TableLink crystalTableLink in crystalTableLinks) {
-                        DataAccess.Sql.Table sourceTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.SourceTable.Location);
-                        DataAccess.Sql.Table destinationTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.DestinationTable.Location);
-                        if(sourceTable != null && destinationTable != null) {
+                        DataAccess.Sql.Table parentTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.SourceTable.Location);
+                        DataAccess.Sql.Table nestedTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.DestinationTable.Location);
+                        if(parentTable != null && nestedTable != null) {
                             var rasTableLink = GetRasObject<CrystalDecisions.ReportAppServer.DataDefModel.ISCRTableLink>(crystalTableLink);
+                            Xpo.DB.JoinType joinType = CrystalTypeConverter.ConvertToJoinType(rasTableLink.JoinType);
                             RelationColumnInfo[] relationColumnInfo = GenerateRelationColumnInfo(
                                 crystalTableLink.SourceFields,
                                 crystalTableLink.DestinationFields,
                                 CrystalTypeConverter.ConvertToConditionType(rasTableLink.JoinType));
-                            selectQuery.AddRelation(sourceTable, destinationTable, relationColumnInfo);
+                            selectQuery.AddRelation(parentTable, nestedTable, joinType, relationColumnInfo);
                         }
                     }
                 }

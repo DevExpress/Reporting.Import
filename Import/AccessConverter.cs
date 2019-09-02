@@ -676,7 +676,7 @@ namespace DevExpress.XtraReports.Import {
 
         public static T GetProperty<T>(object obj, string propertyName) {
             Type type = obj.GetType();
-            T result = (T)obj.GetType().InvokeMember(propertyName, BindingFlags.GetProperty, null, obj, null);
+            T result = (T)type.InvokeMember(propertyName, BindingFlags.GetProperty, null, obj, null);
             return result;
         }
 

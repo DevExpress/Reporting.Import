@@ -170,7 +170,9 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
             return "{0}";
         }
         CriteriaOperator CreateDateExpression(IList<CriteriaOperator> parameters) {
-            Assert(parameters.Count == 3);
+            Assert(parameters.Count == 1 || parameters.Count == 3);
+            if(parameters.Count == 1)
+                return new FunctionOperator(FunctionOperatorType.GetDate, parameters[0]);
             if(parameters.OfType<FunctionOperator>()
                 .Select(x => x.OperatorType)
                 .SequenceEqual(new FunctionOperatorType[] { FunctionOperatorType.GetYear, FunctionOperatorType.GetMonth, FunctionOperatorType.GetDay })) {
