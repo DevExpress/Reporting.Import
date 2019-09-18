@@ -757,7 +757,7 @@ namespace DevExpress.XtraReports.Import {
             } else if(databaseDll == "crdb_oracle.dll") {
                 return new OracleConnectionParameters(connectionInfo.ServerName, connectionInfo.UserID, connectionInfo.Password);
             } else if(databaseDll == "crdb_fielddef.dll") {
-                string optionalSearchDirectory = originalReportPath != null ? Path.GetDirectoryName(originalReportPath) : null;
+                string optionalSearchDirectory = !string.IsNullOrEmpty(originalReportPath) ? Path.GetDirectoryName(originalReportPath) : null;
                 string ttxXmlFilePath = GenerateTtxXmlFilePath(connectionInfo.ServerName, optionalSearchDirectory);
                 if(!string.IsNullOrEmpty(ttxXmlFilePath))
                     return new XmlFileConnectionParameters(ttxXmlFilePath);
