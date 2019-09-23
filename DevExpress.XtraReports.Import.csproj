@@ -156,6 +156,7 @@
     <Compile Include="Import\ActiveReportsConverter.AssemblyResolve.cs" />
     <Compile Include="Import\ActiveReportsConverter.cs" />
     <Compile Include="Import\CrystalConverter.cs" />
+    <Compile Include="Import\CrystalConverterSubreportGeneratedEventArgs.cs" />
     <Compile Include="Import\CrystalFormula\Formula.cs" />
     <Compile Include="Import\CrystalFormula\FormulaCalculationDirective.cs" />
     <Compile Include="Import\CrystalFormula\FormulaConverter.cs" />

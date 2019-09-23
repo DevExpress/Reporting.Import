@@ -12,7 +12,6 @@
             Warning_FieldObject_SpecialVarType_NotSupported_Format = "FieldObject named '{0}' with special field '{1}' is not currently supported.",
             Warning_SummaryOperation_NotSupported_Format = "FieldObject named '{0}' with summary operation '{1}' is not currently supported.",
             Warning_PictureContent_NotSupported_Format = "PictureObject named '{0}' cannot be properly converted with the image content due to API limitations of SAP Crystal Reports.",
-            Warning_Subreport_NotSupported_Format = "SubreportObject named '{0}' has not been converted.",
             Warning_Chart_NotSupported_Format = "ChartObject named '{0}' has not been converted.",
             Warning_CrossTab_NotSupported_Format = "CrossTabObject named '{0}' has not been converted.",
             Warning_ReportObjectKind_NotSupported_Format = "Report Object named '{0}' with kind '{1}' has not been converted.",

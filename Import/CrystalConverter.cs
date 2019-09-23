@@ -524,6 +524,7 @@ namespace DevExpress.XtraReports.Import {
         }
 
         public bool? SelectFullTableSchema { get; set; }
+        public event CrystalConverterSubreportGeneratedHandler SubreportGenerated;
 
         readonly Dictionary<string, Band> bandsByOriginalNames = new Dictionary<string, Band>(StringComparer.OrdinalIgnoreCase);
         readonly Dictionary<string, Parameter> parametersByOriginalNames = new Dictionary<string, Parameter>(StringComparer.OrdinalIgnoreCase);
@@ -563,6 +564,7 @@ namespace DevExpress.XtraReports.Import {
 
                 string filePath = !crystalReport.IsSubreport ? crystalReport.FilePath : string.Empty;
                 TargetReport.ReportUnit = ReportUnit.HundredthsOfAnInch;
+                TargetReport.Name = crystalReport.Name;
 
                 GenerateDataSources(crystalReport.Database, filePath);
                 if(!crystalReport.IsSubreport) {
@@ -999,7 +1001,6 @@ namespace DevExpress.XtraReports.Import {
                         control = ConvertBoxObject(band, (BoxObject)reportObject);
                         break;
                     case ReportObjectKind.SubreportObject:
-                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Subreport_NotSupported_Format, reportObject.Name));
                         control = ConvertSubreport(band, (SubreportObject)reportObject);
                         break;
                     case ReportObjectKind.ChartObject:
@@ -1221,8 +1222,10 @@ namespace DevExpress.XtraReports.Import {
             if(crystalSubreport != null) {
                 var subCrystalConverter = new CrystalConverter();
                 ConversionResult converterResult = subCrystalConverter.Convert(crystalSubreport);
-                if(converterResult.TargetReport != null)
+                if(converterResult.TargetReport != null) {
                     control.ReportSource = converterResult.TargetReport;
+                    SubreportGenerated?.Invoke(this, new CrystalConverterSubreportGeneratedEventArgs(subreportObject.SubreportName, control, converterResult.TargetReport));
+                }
             }
             return control;
         }

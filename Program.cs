@@ -23,7 +23,7 @@ namespace DevExpress.XtraReports.Import {
                     throw new Exception("File \"" + path + "\" doesn't exist.");
                 ConfigureTracer();
 
-                ConverterBase converter = CreateConverter(Path.GetExtension(path), argDictionary);
+                ConverterBase converter = CreateConverter(Path.GetExtension(path), argDictionary, outputFile);
                 ConversionResult conversionResult = converter.Convert(path);
                 conversionResult.TargetReport.SaveLayoutToXml(outputFile);
             } catch(Exception ex) {
@@ -57,7 +57,7 @@ namespace DevExpress.XtraReports.Import {
             foreach(string s in infos)
                 Console.WriteLine(s);
         }
-        static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary) {
+        static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary, string outputPath) {
 #if Access
             if(extension == ".mdb" || extension == ".mde")
                 return new AccessConverter();
@@ -75,11 +75,14 @@ namespace DevExpress.XtraReports.Import {
                         ? UnrecognizedFunctionBehavior.Ignore
                         : UnrecognizedFunctionBehavior.InsertWarning;
                 }
-                return new CrystalConverter();
+                var crystalConverter = new CrystalConverter();
+                crystalConverter.SubreportGenerated += (_, e) => Converter_SubreportGenerated(outputPath, e);
+                return crystalConverter;
             }
 #endif
             throw new ArgumentException();
         }
+
         static Dictionary<string, string> CreateArgDictionary(string[] args) {
             if(args.Length < 2)
                 throw new ArgumentException();
@@ -102,11 +105,22 @@ namespace DevExpress.XtraReports.Import {
                 .ToDictionary(x => x[0], x => x.Length == 2 ? x[1] : null, StringComparer.OrdinalIgnoreCase);
             return subArgDictionary;
         }
-
         static void ConfigureTracer() {
             var traceSource = XtraPrinting.Tracer.GetSource("DXperience.Reporting", System.Diagnostics.SourceLevels.Error | System.Diagnostics.SourceLevels.Warning);
             var listener = new System.Diagnostics.ConsoleTraceListener();
             traceSource.Listeners.Add(listener);
+        }
+        static void Converter_SubreportGenerated(string outputFile, CrystalConverterSubreportGeneratedEventArgs e) {
+            var subreportFile = Path.Combine(
+                Path.GetDirectoryName(outputFile),
+                Path.GetFileNameWithoutExtension(outputFile) + "_" + EscapeFileName(e.OriginalSubreportName) + Path.GetExtension(outputFile));
+            e.SubReport.SaveLayoutToXml(subreportFile);
+            e.SubreportControl.ReportSourceUrl = subreportFile;
+        }
+        static string EscapeFileName(string originalSubreportName) {
+            foreach(char invalidChar in Path.GetInvalidFileNameChars())
+                originalSubreportName = originalSubreportName.Replace(invalidChar, '_');
+            return originalSubreportName;
         }
     }
 }
