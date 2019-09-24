@@ -1048,6 +1048,7 @@ namespace DevExpress.XtraReports.Import {
             if(section.SectionFormat.EnableKeepTogether)
                 band.KeepTogether = true;
             band.Visible = !section.SectionFormat.EnableSuppress;
+            band.PrintUnderNextBands = section.SectionFormat.EnableUnderlaySection;
             ConvertSectionControls(band, section, crystalReportFileName);
         }
 
