@@ -133,10 +133,12 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                     return new FunctionOperator(FunctionOperatorType.Iif, parameters);
                 case "totext":
                 case "cstr":
-                    Assert(parameters.Count == 1 || parameters.Count == 2);
-                    return parameters.Count == 1
-                        ? new FunctionOperator(FunctionOperatorType.ToStr, parameters[0])
-                        : new FunctionOperator("FormatString", new OperandValue(GenerateFormatString(parameters[1])), parameters[0]);
+                    Assert(parameters.Count >= 1 && parameters.Count <= 3);
+                    if(parameters.Count == 1)
+                        return new FunctionOperator(FunctionOperatorType.ToStr, parameters[0]);
+                    Assert(parameters.Count == 2
+                        || (parameters.Count == 3 && (parameters[2] as OperandValue).Value as string == string.Empty)); // decimal separator is not supported
+                    return new FunctionOperator("FormatString", new OperandValue(GenerateFormatString(parameters[1])), parameters[0]);
                 case "sum":
                     return CreateAggregate(parameters, Aggregate.Sum);
                 case "count":
@@ -154,7 +156,7 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
             return new FunctionOperator(FunctionOperatorType.Iif, new OperandValue(true), new OperandValue(NotSupportedStub), new OperandValue(new FunctionOperator(name, parameters).ToString()));
         }
         CriteriaOperator GetSpecialField(object fieldName) {
-            throw new FormulaParserException("Special Fields are not supported.");
+            throw new FormulaParserException($"Special Fields are not supported ({fieldName}).");
         }
         static string GenerateFormatString(CriteriaOperator criteriaOperator) {
             var operandValue = criteriaOperator as OperandValue;

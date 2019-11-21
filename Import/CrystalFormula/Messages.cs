@@ -20,6 +20,7 @@
             Control_Untranslated = "Untranslated",
             Control_CantResolveBinding = "Cannot resolve binding",
             Warning_CalculatedField_FormulaNotFound_Format = "Cannot find the '{0}' formula used in the '{1}' calculated field.",
+            Warning_DataBinding_SqlExpressionFieldNotSupported_Format = "SQL Expression Fields are not supported (field '{0}' is used in control '{0}').",
             Warning_DataBinding_FormulaNotFound_Format = "Cannot find the '{0}' formula used in the '{1}' control binding.",
             Warning_CalculatedField_ParameterNotFound_Format = "Cannot find the '{0}' parameter used in the '{1}' calculated field.",
             Warning_DataSourceSP_ParameterNotFound_Format = "Cannot find the '{0}' parameter used in the '{1}' datasource stored procedure query.",

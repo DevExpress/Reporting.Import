@@ -1,4 +1,4 @@
-#region DEMO_REMOVE
+﻿#region DEMO_REMOVE
 
 #if Crystal
 using System;
@@ -24,6 +24,7 @@ using DevExpress.XtraReports.Parameters;
 using DevExpress.XtraReports.UI;
 using Cr = CrystalDecisions.CrystalReports.Engine;
 using CrData = CrystalDecisions.ReportAppServer.DataDefModel;
+using CrReport = CrystalDecisions.ReportAppServer.ReportDefModel;
 
 namespace DevExpress.XtraReports.Import {
     public class CrystalConverter : ExternalConverterBase {
@@ -397,7 +398,7 @@ namespace DevExpress.XtraReports.Import {
         }
 
         static class PrintHelper {
-            public static byte[] GetPrintedBmp(string crystalReportFileName, CrystalDecisions.ReportAppServer.ReportDefModel.ISCRReportObject pictureObject, short indexOnSection) {
+            public static byte[] GetPrintedBmp(string crystalReportFileName, CrReport.ISCRReportObject pictureObject, short indexOnSection) {
                 short reportId = Interop.OpenPrintJob(crystalReportFileName);
                 short nthObjectInSection = Interop.GetNthObjectInSection(reportId, (short)pictureObject.SectionCode, indexOnSection);
                 var pictureObjectStruct = new Interop.PictureObjectStruct {
@@ -531,7 +532,7 @@ namespace DevExpress.XtraReports.Import {
         readonly Dictionary<string, Tuple<SqlDataSource, SqlQuery>> sqlQueriesByCrystalTableNames = new Dictionary<string, Tuple<SqlDataSource, SqlQuery>>(StringComparer.OrdinalIgnoreCase);
         readonly Dictionary<string, Tuple<CalculatedField, Formula>> calculatedFieldsByFormulae = new Dictionary<string, Tuple<CalculatedField, Formula>>(StringComparer.OrdinalIgnoreCase);
         readonly Dictionary<string, string> sqlSelectQueryColumnsByCrystalTableColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        readonly Dictionary<StoredProcQuery, object> crystalStoredProceduresByStoredProcQueries = new Dictionary<StoredProcQuery, object>(); // Value=CrData.ISCRProcedure; do not use types from CrystalDecisions.*.dll assemblies in the class fields
+        readonly Dictionary<SqlQuery, object> crystalStoredProceduresByStoredProcQueries = new Dictionary<SqlQuery, object>(); // Value=CrData.ISCRProcedure; do not use types from CrystalDecisions.*.dll assemblies in the class fields
         readonly List<Action> onEnd = new List<Action>();
 
         ConversionResult Convert(ReportDocument crystalReport) {
@@ -642,15 +643,15 @@ namespace DevExpress.XtraReports.Import {
             var selectQueryCrystalTableList = new List<Cr.Table>();
             foreach(Cr.Table crystalTable in crystalTables) {
                 var rasTable = GetRasObject<CrystalDecisions.ReportAppServer.DataDefModel.ISCRTable>(crystalTable);
-                if(rasTable.ClassName == "CrystalReports.Procedure") {
+                if(rasTable.ClassName == "CrystalReports.Procedure" || rasTable.ClassName == "CrystalReports.CommandTable") {
                     if(singleCrystalTable == null)
                         Tracer.TraceWarning(NativeSR.TraceSource, Messages.Warning_DataSourceSP_Limitation);
-                    Tuple<StoredProcQuery, Dictionary<string, Type>> spQueryDefinition = GenerateStoredProcQueryDefinition(crystalTable, columnsFilter);
+                    Tuple<SqlQuery, Dictionary<string, Type>> spQueryDefinition = GenerateStoredProcQueryDefinition(crystalTable, columnsFilter);
                     result.Add(spQueryDefinition.Item1, Tuple.Create(spQueryDefinition.Item2, crystalTable));
-                    continue;
+                } else {
+                    FillSelectQueryDefinition(selectQuery, selectQueryColumns, selectQueryDisplayColumnNames, crystalTable, columnsFilter);
+                    selectQueryCrystalTableList.Add(crystalTable);
                 }
-                FillSelectQueryDefinition(selectQuery, selectQueryColumns, selectQueryDisplayColumnNames, crystalTable, columnsFilter);
-                selectQueryCrystalTableList.Add(crystalTable);
             }
             if(selectQuery.Tables.Count > 0) {
                 if(crystalTableLinks != null) {
@@ -695,12 +696,16 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
-        Tuple<StoredProcQuery, Dictionary<string, Type>> GenerateStoredProcQueryDefinition(Cr.Table crystalTable, Func<Cr.Table, DatabaseFieldDefinition, bool> columnsFilter = null) {
-            var result = new StoredProcQuery {
-                StoredProcName = crystalTable.Location.Split(new[] { ';' }, 2)[0],
-                Name = NamingMapper.GenerateSafeName<StoredProcQuery>(crystalTable.Name)
-            };
+        Tuple<SqlQuery, Dictionary<string, Type>> GenerateStoredProcQueryDefinition(Cr.Table crystalTable, Func<Cr.Table, DatabaseFieldDefinition, bool> columnsFilter = null) {
             var rasProcedure = GetRasObject<CrData.ISCRProcedure>(crystalTable);
+            SqlQuery result = rasProcedure.ClassName == "CrystalReports.CommandTable"
+                ? (SqlQuery)new CustomSqlQuery {
+                    Sql = ((CrData.ISCRCommandTable)rasProcedure).CommandText
+                }
+                : new StoredProcQuery {
+                    StoredProcName = crystalTable.Location.Split(new[] { ';' }, 2)[0]
+                };
+            result.Name = NamingMapper.GenerateSafeName<SqlQuery>(crystalTable.Name);
             crystalStoredProceduresByStoredProcQueries.Add(result, rasProcedure);
             var columns = new Dictionary<string, Type>();
             foreach(DatabaseFieldDefinition crystalTableColumn in crystalTable.Fields) {
@@ -763,7 +768,7 @@ namespace DevExpress.XtraReports.Import {
                 string ttxXmlFilePath = GenerateTtxXmlFilePath(connectionInfo.ServerName, optionalSearchDirectory);
                 if(!string.IsNullOrEmpty(ttxXmlFilePath))
                     return new XmlFileConnectionParameters(ttxXmlFilePath);
-            } else if(databaseDll == "crdb_odbc.dll" && logonProperties.Lookup("Connection String") as string == "DRIVER=SQL Server") {
+            } else if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ODBC && logonProperties.Lookup("Connection String") as string == "DRIVER=SQL Server") {
                 return new MsSqlConnectionParameters(connectionInfo.ServerName, connectionInfo.DatabaseName, connectionInfo.UserID, connectionInfo.Password, connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
             }
             Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseDllNotSupported_Format, databaseDll));
@@ -795,22 +800,26 @@ namespace DevExpress.XtraReports.Import {
                 .ToList();
             string dataMember = allQueries.Count == 1 ? allQueries[0].Name : string.Empty;
             foreach(FormulaFieldDefinition crystalFormula in crystalFormulae) {
-                Formula formula;
                 var result = new CalculatedField {
                     DataMember = dataMember,
                     FieldType = CrystalTypeConverter.ConvertToFieldType(crystalFormula.ValueType)
                 };
                 GenerateName(result, crystalFormula.Name);
-                result.Expression = ExpressionFactory.CreateExpression(
-                    crystalFormula.Text,
-                    sqlSelectQueryColumnsByCrystalTableColumns,
-                    GetCalculatedFieldByFormula,
-                    result.Name,
-                    dataMember,
-                    out formula);
+                Formula formula;
+                result.Expression = CreateExpression(crystalFormula.Text, result.Name, dataMember, out formula);
                 calculatedFieldsByFormulae[crystalFormula.Name] = Tuple.Create(result, formula);
                 TargetReport.CalculatedFields.Add(result);
             }
+        }
+
+        string CreateExpression(string crystalFormula, string currentName, string dataMember, out Formula formula) {
+            return ExpressionFactory.CreateExpression(
+                    crystalFormula,
+                    sqlSelectQueryColumnsByCrystalTableColumns,
+                    GetCalculatedFieldByFormula,
+                    currentName,
+                    dataMember,
+                    out formula);
         }
 
         void GenerateName(CalculatedField calculatedField, string formulaName) {
@@ -839,21 +848,37 @@ namespace DevExpress.XtraReports.Import {
         }
 
         void AssignStoredProcedureParameters() {
-            foreach(KeyValuePair<StoredProcQuery, object> pair in crystalStoredProceduresByStoredProcQueries) {
-                StoredProcQuery storedProcQuery = pair.Key;
+            foreach(KeyValuePair<SqlQuery, object> pair in crystalStoredProceduresByStoredProcQueries) {
+                SqlQuery query = pair.Key;
                 var rasProcedure = (CrData.ISCRProcedure)pair.Value;
+
+                var customSqlQuery = query as CustomSqlQuery;
+                if(customSqlQuery != null)
+                    customSqlQuery.Sql = UpdateSqlParameterNames(customSqlQuery.Sql);
                 foreach(CrData.ISCRField crystalParameter in rasProcedure.Parameters) {
                     Parameter parameter;
                     if(!parametersByOriginalNames.TryGetValue(crystalParameter.Name, out parameter)) {
-                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_DataSourceSP_ParameterNotFound_Format, crystalParameter.Name, storedProcQuery.Name));
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_DataSourceSP_ParameterNotFound_Format, crystalParameter.Name, query.Name));
                         continue;
                     }
-                    storedProcQuery.Parameters.Add(new QueryParameter(
+                    query.Parameters.Add(new QueryParameter(
                         crystalParameter.Name,
                         typeof(DataAccess.Expression),
                         new DataAccess.Expression("?" + parameter.Name, parameter.Type)));
                 }
             }
+        }
+        string UpdateSqlParameterNames(string sql) {
+            // 'where ID = {?p1}' should be replaced by 'where ID = @p1'
+            System.Text.RegularExpressions.MatchCollection matches = System.Text.RegularExpressions.Regex.Matches(sql, @"\{\?(\w+)\}");
+            foreach(System.Text.RegularExpressions.Match match in matches) {
+                if(match.Groups.Count == 2) {
+                    Parameter parameter;
+                    if(parametersByOriginalNames.TryGetValue(match.Groups[1].Value, out parameter))
+                        sql = sql.Replace(match.Groups[0].Value, "@" + parameter.Name);
+                }
+            }
+            return sql;
         }
 
         void PostConvertCalculatedFields() {
@@ -1025,6 +1050,7 @@ namespace DevExpress.XtraReports.Import {
 
         TBand ConvertAreaSections<TBand>(TBand band, Area area, string crystalReportFileName)
             where TBand : Band {
+            NamingMapper.GenerateAndAssignXRControlName(band, area.Name);
             bandsByOriginalNames[area.Name] = band;
             if(area.Sections.Count == 1) {
                 ConfigureBand(band, area.Sections[0], crystalReportFileName);
@@ -1053,6 +1079,44 @@ namespace DevExpress.XtraReports.Import {
         }
 
         XRControl ConvertFieldObject(Band band, FieldObject fieldObject) {
+            XRControl control;
+            if(HasAccessToDataSource(fieldObject))
+                control = ConvertFieldObjectCore(band, fieldObject);
+            else
+                control = ConvertFieldObjectFallback(band, GetRasObject<CrReport.ISCRFieldObject>(fieldObject));
+            if(control == null) {
+                control = CreateXRControl<XRLabel>(band, fieldObject.Name);
+                control.Text = Messages.Control_Untranslated;
+            }
+
+            control.ForeColor = fieldObject.Color;
+            control.Font = (Font)fieldObject.Font.Clone();
+            return control;
+        }
+
+        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+        static bool HasAccessToDataSource(FieldObject fieldObject) {
+            try {
+                var ignore = fieldObject.DataSource;
+                return true;
+            } catch(AccessViolationException) {
+                return false;
+            }
+        }
+
+        XRLabel ConvertFieldObjectFallback(Band band, CrReport.ISCRFieldObject fieldObject) {
+            Formula ignore;
+            string expression = CreateExpression(
+                    fieldObject.DataSource,
+                    "Expression",
+                    band.Report.DataMember,
+                    out ignore);
+            var label = CreateXRControl<XRLabel>(band, fieldObject.Name);
+            label.ExpressionBindings.Add(new ExpressionBinding("Text", expression));
+            return label;
+        }
+
+        XRControl ConvertFieldObjectCore(Band band, FieldObject fieldObject) {
             XRControl control = null;
             FieldDefinition fieldDefinition = fieldObject.DataSource;
             if(fieldDefinition != null) {
@@ -1066,7 +1130,7 @@ namespace DevExpress.XtraReports.Import {
                         AddParameterBinding(control, fieldDefinition);
                         break;
                     case FieldKind.SpecialVarField:
-                        var specialVarFieldDefinition = (SpecialVarFieldDefinition)fieldObject.DataSource;
+                        var specialVarFieldDefinition = (SpecialVarFieldDefinition)fieldDefinition;
                         switch(specialVarFieldDefinition.SpecialVarType) {
                             case SpecialVarType.PageNumber:
                                 control = CreateXRControl<XRPageInfo>(band, fieldObject.Name, x => x.PageInfo = PageInfo.Number);
@@ -1100,11 +1164,11 @@ namespace DevExpress.XtraReports.Import {
                         AddDataBinding(control, "Text", fieldDefinition.FormulaName, isGrouping: true);
                         break;
                     case FieldKind.SummaryField:
-                        var summaryDefinition = (SummaryFieldDefinition)fieldObject.DataSource;
+                        var summaryDefinition = (SummaryFieldDefinition)fieldDefinition;
                         control = GenerateSummarySafe(band, fieldObject.Name, summaryDefinition.Operation, false, SummaryRunning.Report, summaryDefinition.SummarizedField.FormulaName);
                         break;
                     case FieldKind.RunningTotalField:
-                        var runningTotalField = (RunningTotalFieldDefinition)fieldObject.DataSource;
+                        var runningTotalField = (RunningTotalFieldDefinition)fieldDefinition;
                         SummaryRunning summaryRunning = runningTotalField.EvaluationConditionType == RunningTotalCondition.OnChangeOfGroup
                             ? SummaryRunning.Group
                             : SummaryRunning.Report;
@@ -1112,21 +1176,13 @@ namespace DevExpress.XtraReports.Import {
                         break;
                     case FieldKind.FormulaField:
                         control = CreateXRControl<XRLabel>(band, fieldDefinition.Name);
-                        AddDataBinding(control, "Text", fieldObject.DataSource.FormulaName, isFormula: true);
+                        AddDataBinding(control, "Text", fieldDefinition.FormulaName, isFormula: true);
                         break;
                     default:
                         Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_FieldObject_Kind_NotSupported_Format, fieldObject.Name, fieldDefinition.Kind));
                         break;
                 }
             }
-
-            if(control == null) {
-                control = CreateXRControl<XRLabel>(band, fieldObject.Name);
-                control.Text = Messages.Control_Untranslated;
-            }
-
-            control.ForeColor = fieldObject.Color;
-            control.Font = (Font)fieldObject.Font.Clone();
             return control;
         }
 
@@ -1151,7 +1207,7 @@ namespace DevExpress.XtraReports.Import {
 
         XRPictureBox CreatePictureObject(Band band, PictureObject fieldObject, string crystalReportFileName, short indexOnSection) {
             XRPictureBox result = CreateXRControl<XRPictureBox>(band, fieldObject.Name);
-            var rasPicture = GetRasObject<CrystalDecisions.ReportAppServer.ReportDefModel.ISCRPictureObject>(fieldObject);
+            var rasPicture = GetRasObject<CrReport.ISCRPictureObject>(fieldObject);
             byte[] bmpBytes = GetBmpBytes(rasPicture, crystalReportFileName, indexOnSection);
             if(bmpBytes != null) {
                 var stream = new MemoryStream(bmpBytes);
@@ -1161,7 +1217,7 @@ namespace DevExpress.XtraReports.Import {
             return result;
         }
 
-        static byte[] GetBmpBytes(CrystalDecisions.ReportAppServer.ReportDefModel.ISCRPictureObject crystalPicture, string crystalReportFileName, short indexOnSection) {
+        static byte[] GetBmpBytes(CrReport.ISCRPictureObject crystalPicture, string crystalReportFileName, short indexOnSection) {
             if(crystalPicture == null || string.IsNullOrEmpty(crystalReportFileName))
                 return null;
             ByteArray pictureData = crystalPicture.PictureData;
@@ -1274,7 +1330,8 @@ namespace DevExpress.XtraReports.Import {
 
         void AddDataBinding(XRControl control, string property, string crystalFormulaName, bool isGrouping = false, bool isFormula = false) {
             string optimizedDataMember = GetActualDataMember(crystalFormulaName, control.Name, isGrouping, isFormula);
-            control.DataBindings.Add(property, TargetReport.DataSource, optimizedDataMember);
+            if(optimizedDataMember != null)
+                control.DataBindings.Add(property, TargetReport.DataSource, optimizedDataMember);
         }
 
         string GetActualDataMember(string crystalFormulaName, string controlName, bool isGrouping = false, bool isFormula = false) {
@@ -1284,10 +1341,16 @@ namespace DevExpress.XtraReports.Import {
             dataMember = dataMember.Trim('{', '}');
             string resultDataMember;
             if(isFormula) {
-                string formualName = dataMember.TrimStart('@');
-                CalculatedField calculatedField = GetCalculatedFieldByFormula(formualName);
-                if(calculatedField == null)
-                    throw new InvalidOperationException(string.Format(Messages.Warning_CalculatedField_FormulaNotFound_Format, formualName, controlName));
+                if(dataMember.StartsWith("%")) {
+                    Tracer.TraceError(NativeSR.TraceSource, string.Format(Messages.Warning_DataBinding_SqlExpressionFieldNotSupported_Format, dataMember, controlName));
+                    return null;
+                }
+                string formulaName = dataMember.TrimStart('@');
+                CalculatedField calculatedField = GetCalculatedFieldByFormula(formulaName);
+                if(calculatedField == null) {
+                    Tracer.TraceError(NativeSR.TraceSource, string.Format(Messages.Warning_CalculatedField_FormulaNotFound_Format, formulaName, controlName));
+                    return null;
+                }
                 return EmbeddedFieldsHelper.GetDataMember(calculatedField.DataMember, calculatedField.Name);
             } else if(sqlSelectQueryColumnsByCrystalTableColumns.TryGetValue(dataMember, out resultDataMember))
                 return resultDataMember;
@@ -1379,8 +1442,8 @@ namespace DevExpress.XtraReports.Import {
 
         static bool TryGetNavigationUrl(EngineObjectBase objectFormat, out string navigationUrl) {
             navigationUrl = null;
-            var value = GetRasObject<CrystalDecisions.ReportAppServer.ReportDefModel.ISCRObjectFormat>(objectFormat);
-            if(value != null && value.HyperlinkType == CrystalDecisions.ReportAppServer.ReportDefModel.CrHyperlinkTypeEnum.crHyperlinkTypeWebsite && !string.IsNullOrEmpty(value.HyperlinkText)) {
+            var value = GetRasObject<CrReport.ISCRObjectFormat>(objectFormat);
+            if(value != null && value.HyperlinkType == CrReport.CrHyperlinkTypeEnum.crHyperlinkTypeWebsite && !string.IsNullOrEmpty(value.HyperlinkText)) {
                 navigationUrl = value.HyperlinkText;
                 return true;
             }
