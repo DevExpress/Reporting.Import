@@ -10,6 +10,8 @@ using DevExpress.XtraReports.Design;
 
 namespace DevExpress.XtraReports.Import {
     public class AccessReportSelectionForm : XtraForm {
+        public static string AccessIconResourceName { get; set; } = typeof(Design.ResFinder).Namespace + ".Import.AccessReport.bmp";
+
         private System.Windows.Forms.ListView lvReports;
         private System.Windows.Forms.Label lblInfo;
 
@@ -37,8 +39,7 @@ namespace DevExpress.XtraReports.Import {
 
         public AccessReportSelectionForm() {
             InitializeComponent();
-
-            DevExpress.Utils.ResourceImageHelper.FillImageListFromResources(imageList, typeof(DevExpress.XtraReports.Design.ResFinder).Namespace + ".Import.AccessReport.bmp", System.Reflection.Assembly.GetExecutingAssembly());
+            DevExpress.Utils.ResourceImageHelper.FillImageListFromResources(imageList, AccessIconResourceName, System.Reflection.Assembly.GetExecutingAssembly());
         }
 
         protected override void Dispose(bool disposing) {

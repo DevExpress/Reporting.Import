@@ -3,10 +3,6 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 
-namespace DevExpress.XtraReports.Design {
-    internal class ResFinder {
-    }
-}
 namespace DevExpress.XtraReports.Import {
     class Program {
         static void Main(string[] args) {
@@ -59,6 +55,7 @@ namespace DevExpress.XtraReports.Import {
         }
         static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary, string outputPath) {
 #if Access
+            AccessReportSelectionForm.AccessIconResourceName = typeof(AccessConverter).Namespace + ".Import.AccessReport.bmp";
             if(extension == ".mdb" || extension == ".mde")
                 return new AccessConverter();
 #endif

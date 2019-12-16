@@ -173,6 +173,7 @@
     <Compile Include="Import\ExternalConverterBase.cs" />
     <Compile Include="Import\Interop.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="ResFinder.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Import\AccessReport.bmp" />
