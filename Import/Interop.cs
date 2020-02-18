@@ -1,4 +1,4 @@
-#region DEMO_REMOVE
+﻿#region DEMO_REMOVE
 
 #if Access
 using System;
@@ -25,6 +25,7 @@ namespace DevExpress.XtraReports.Import {
         protected abstract string RecordSource { get; }
         protected abstract object PrtMip { get; }
         public abstract int LogicalPageWidth { get; }
+        public abstract int LogicalPageHeight { get; }
         protected abstract byte PictureSizeMode { get; }
         protected abstract byte PictureType { get; }
         protected abstract _Section get_Section(object Index);
@@ -113,6 +114,7 @@ namespace DevExpress.XtraReports.Import {
         protected override string RecordSource { get { return report.RecordSource; } }
         protected override object PrtMip { get { return report.PrtMip; } }
         public override int LogicalPageWidth { get { return report.LogicalPageWidth; } }
+        public override int LogicalPageHeight { get { return report.LogicalPageHeight; } }
         protected override byte PictureSizeMode { get { return report.PictureSizeMode; } }
         protected override byte PictureType { get { return report.PictureType; } }
         protected override _Section get_Section(object Index) {
@@ -133,6 +135,7 @@ namespace DevExpress.XtraReports.Import {
         protected override string RecordSource { get { return report.RecordSource; } }
         protected override object PrtMip { get { return report.PrtMip; } }
         public override int LogicalPageWidth { get { return report.LogicalPageWidth; } }
+        public override int LogicalPageHeight { get { return report.LogicalPageHeight; } }
         protected override byte PictureSizeMode { get { return report.PictureSizeMode; } }
         protected override byte PictureType { get { return report.PictureType; } }
         protected override _Section get_Section(object Index) {
@@ -323,6 +326,9 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
         [DispId(0xc6)]
         int LogicalPageWidth { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc6)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc6)] set; }
 
+        [DispId(0xc7)]
+        int LogicalPageHeight { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc7)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc7)] set; }
+
         [DispId(0x138)]
         byte PictureSizeMode { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x138)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x138)] set; }
 
@@ -353,6 +359,9 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
 
         [DispId(0xc6)]
         int LogicalPageWidth { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc6)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc6)] set; }
+
+        [DispId(0xc7)]
+        int LogicalPageHeight { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc7)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), TypeLibFunc((short)0x40), DispId(0xc7)] set; }
 
         [DispId(0x138)]
         byte PictureSizeMode { [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x138)] get; [param: In] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x138)] set; }

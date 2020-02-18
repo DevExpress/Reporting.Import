@@ -1,4 +1,4 @@
-#region DEMO_REMOVE
+﻿#region DEMO_REMOVE
 
 #if Access
 using System;
@@ -281,7 +281,7 @@ namespace DevExpress.XtraReports.Import {
                 TargetReport.PaperKind = PaperKind.Custom;
 
                 TargetReport.PageWidth = TwipsToHOI(report.LogicalPageWidth + leftMargin + rightMargin);
-                TargetReport.PageHeight = TwipsToHOI(7 * report.LogicalPageWidth / 5 + topMargin + bottomMargin);
+                TargetReport.PageHeight = TwipsToHOI(report.LogicalPageHeight + topMargin + bottomMargin);
 
                 TargetReport.Margins.Top = TwipsToHOI(topMargin);
                 TargetReport.Margins.Bottom = TwipsToHOI(bottomMargin);
