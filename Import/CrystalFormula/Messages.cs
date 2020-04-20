@@ -8,6 +8,7 @@
             Warning_Connection_OleDbProviderNotSupported_Format = "Connection - Cannot generate a report data source because the following OLE DB provider is not supported: '{0}'.",
             Warning_Connection_OleDbProviderNotSpecified = "Connection - Cannot generate a report data source because the OLE DB connection has no provider.",
             Warning_Connection_DatabaseDllNotSupported_Format = "Connection - Cannot generate a report data source because the following database DLL is not supported: '{0}'.",
+            Warning_Connection_DatabaseOdbcDsnNotSupported_Format = "Connection - Cannot generate a report data source because the following ODBC database with DSN (named '{0}') is not supported",
             Warning_FieldObject_Kind_NotSupported_Format = "FieldObject named '{0}' with definition kind '{1}' is not currently supported.",
             Warning_FieldObject_SpecialVarType_NotSupported_Format = "FieldObject named '{0}' with special field '{1}' is not currently supported.",
             Warning_SummaryOperation_NotSupported_Format = "FieldObject named '{0}' with summary operation '{1}' is not currently supported.",

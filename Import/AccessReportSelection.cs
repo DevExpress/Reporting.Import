@@ -1,4 +1,4 @@
-#region DEMO_REMOVE
+﻿#region DEMO_REMOVE
 
 using System;
 using System.Drawing;

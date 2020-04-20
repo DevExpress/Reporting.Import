@@ -747,7 +747,8 @@ namespace DevExpress.XtraReports.Import {
             NameValuePairs2 logonProperties = connectionInfo.LogonProperties;
             if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADO || databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADOPLUS) {
                 var oledbProvider = logonProperties.Lookup("Provider") as string;
-                if(oledbProvider == "SQLOLEDB" || oledbProvider == "SQLNCLI11"|| oledbProvider == "SQLNCLI10") {
+                var msSqlProviders = new[] { "SQLOLEDB", "SQLNCLI", "SQLNCLI10", "SQLNCLI11" };
+                if(Array.IndexOf(msSqlProviders, oledbProvider) >= 0) {
                     return new MsSqlConnectionParameters(connectionInfo.ServerName, connectionInfo.DatabaseName, connectionInfo.UserID, connectionInfo.Password, connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
                 } else if(oledbProvider == "MSDAORA") {
                     return new OracleConnectionParameters(connectionInfo.ServerName, connectionInfo.UserID, connectionInfo.Password);
@@ -768,8 +769,17 @@ namespace DevExpress.XtraReports.Import {
                 string ttxXmlFilePath = GenerateTtxXmlFilePath(connectionInfo.ServerName, optionalSearchDirectory);
                 if(!string.IsNullOrEmpty(ttxXmlFilePath))
                     return new XmlFileConnectionParameters(ttxXmlFilePath);
-            } else if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ODBC && logonProperties.Lookup("Connection String") as string == "DRIVER=SQL Server") {
-                return new MsSqlConnectionParameters(connectionInfo.ServerName, connectionInfo.DatabaseName, connectionInfo.UserID, connectionInfo.Password, connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
+            } else if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ODBC) {
+                var odbcDsnName = logonProperties.Lookup("UseDSNProperties") as string;
+                object useDSNPropertiesObj = logonProperties.Lookup("UseDSNProperties");
+                if(useDSNPropertiesObj is bool && (bool)useDSNPropertiesObj)
+                    Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseOdbcDsnNotSupported_Format, odbcDsnName));
+                return new MsSqlConnectionParameters(
+                    connectionInfo.ServerName,
+                    connectionInfo.DatabaseName,
+                    connectionInfo.UserID,
+                    connectionInfo.Password,
+                    connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
             }
             Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseDllNotSupported_Format, databaseDll));
             return null;
