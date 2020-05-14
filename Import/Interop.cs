@@ -20,6 +20,7 @@ namespace DevExpress.XtraReports.Import {
         protected AccessReportBase() {
         }
         protected abstract object SourceReport { get; }
+        public abstract string Name { get; }
         protected abstract string Picture { get; }
         protected abstract object PictureData { get; }
         protected abstract string RecordSource { get; }
@@ -104,11 +105,12 @@ namespace DevExpress.XtraReports.Import {
         }
     }
     public class AccessReport : AccessReportBase {
-        Report report;
+        readonly Report report;
         public AccessReport(Report report) {
             this.report = report;
         }
         protected override object SourceReport { get { return report; } }
+        public override string Name { get { return report.Name; } }
         protected override string Picture { get { return report.Picture; } }
         protected override object PictureData { get { return report.PictureData; } }
         protected override string RecordSource { get { return report.RecordSource; } }
@@ -125,11 +127,12 @@ namespace DevExpress.XtraReports.Import {
         }
     }
     public class _AccessReport : AccessReportBase {
-        _Report report;
+        readonly _Report report;
         public _AccessReport(_Report report) {
             this.report = report;
         }
         protected override object SourceReport { get { return report; } }
+        public override string Name { get { return report.Name; } }
         protected override string Picture { get { return report.Picture; } }
         protected override object PictureData { get { return report.PictureData; } }
         protected override string RecordSource { get { return report.RecordSource; } }
@@ -311,6 +314,12 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
     }
     [ComImport, Guid("3E8B6B00-91FF-101B-AF4E-00AA003F0F07"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
     public interface _Report {
+        [DispId(-2147418112)]
+        string Name {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(-2147418112)] [return: MarshalAs(UnmanagedType.BStr)] get;
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(-2147418112)] [param: In, MarshalAs(UnmanagedType.BStr)] set;
+        }
+
         [DispId(7)]
         string Picture { [return: MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(7)] get; [param: In, MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(7)] set; }
 
@@ -343,8 +352,14 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
         [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(0x832)]
         GroupLevel get_GroupLevel([In] int Index);
     }
+    // _Report2 | ReportOldV10
     [ComImport, Guid("32A1C62A-D374-11D3-8D21-0050048383FB"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
     public interface Report {
+        [DispId(-2147418112)]
+        string Name {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(-2147418112)] [return: MarshalAs(UnmanagedType.BStr)] get;
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(-2147418112)] [param: In, MarshalAs(UnmanagedType.BStr)] set;
+        }
         [DispId(7)]
         string Picture { [return: MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(7)] get; [param: In, MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(7)] set; }
 
@@ -404,6 +419,8 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
     }
     [ComImport, Guid("26B96540-8F8E-101B-AF4E-00AA003F0F07"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
     public interface Control {
+        [DispId(-2147418112)]
+        string Name { [return: MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(-2147418112)] get; [param: In, MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(-2147418112)] set; }
     }
     [ComImport, Guid("3B06E946-E47C-11CD-8701-00AA003F0F07"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
     public interface TextBox {
@@ -730,6 +747,62 @@ namespace DevExpress.XtraReports.Import.Interop.Access {
 
         [DispId(-2147418112)]
         string Name { [return: MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(-2147418112)] get; [param: In, MarshalAs(UnmanagedType.BStr)] [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime), DispId(-2147418112)] set; }
+    }
+    [ComImport]
+    [TypeLibType(4304)]
+    [Guid("3B06E964-E47C-11CD-8701-00AA003F0F07")]
+    public interface SubForm {
+        [DispId(54)]
+        short Left {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(54)] get;
+            [param: In] [MethodImpl(MethodImplOptions.InternalCall), DispId(54)] set;
+        }
+
+        [DispId(141)]
+        short Top {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(141)] get;
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(141)] [param: In] set;
+        }
+
+        [DispId(150)]
+        short Width {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(150)] get;
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(150)] [param: In] set;
+        }
+
+        [DispId(44)]
+        short Height {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(44)] get;
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(44)] [param: In] set;
+        }
+    }
+    [ComImport]
+    [TypeLibType(4176)]
+    [Guid("3B06E958-E47C-11CD-8701-00AA003F0F07")]
+    public interface BoundObjectFrame {
+        [DispId(54)]
+        short Left {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(54)] get;
+            [param: In] [MethodImpl(MethodImplOptions.InternalCall), DispId(54)] set;
+        }
+
+        [DispId(141)]
+        short Top {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(141)] get;
+            [param: In] [MethodImpl(MethodImplOptions.InternalCall), DispId(141)] set;
+        }
+
+        [DispId(150)]
+        short Width {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(150)] get;
+            [param: In] [MethodImpl(MethodImplOptions.InternalCall), DispId(150)] set;
+        }
+
+        [DispId(44)]
+        short Height {
+            [MethodImpl(MethodImplOptions.InternalCall), DispId(44)] get;
+            [param: In] [MethodImpl(MethodImplOptions.InternalCall), DispId(44)] set;
+        }
     }
     [ComImport, Guid("3F4A878E-C395-11D3-8D1F-0050048383FB"), InterfaceType(ComInterfaceType.InterfaceIsIDispatch)]
     public interface Form {

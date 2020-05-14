@@ -24,10 +24,6 @@ namespace DevExpress.XtraReports.Import {
             dataAdapter.TableMappings.Add(tableMapping);
         }
 
-        protected void BindDataToControl(XRControl control, string property, string dataMember) {
-            BindDataToControl(control, property, dataMember, string.Empty);
-        }
-
         protected static string ParseTableName(string sql) {
             string from = " FROM ";
             sql = sql.ToUpper();

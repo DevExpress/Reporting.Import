@@ -373,7 +373,7 @@ namespace DevExpress.XtraReports.Import {
             src.Style;
             */
         }
-        protected override void BindDataToControl(XRControl control, string property, string dataMember, string formatString) {
+        protected override void BindDataToControl(XRControl control, string property, string dataMember, string formatString = null) {
             string s = bindingPath != "" && dataMember != null
                 ? string.Format("{0}.{1}", bindingPath, dataMember)
                 : dataMember;

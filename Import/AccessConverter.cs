@@ -2,7 +2,6 @@
 
 #if Access
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Data.OleDb;
@@ -11,15 +10,22 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using DevExpress.XtraPrinting;
-using DevExpress.XtraPrinting.Drawing;
 using DevExpress.XtraPrinting.Native;
 using DevExpress.XtraReports.UI;
 using AccessInterop = DevExpress.XtraReports.Import.Interop.Access;
 
 namespace DevExpress.XtraReports.Import {
     public class AccessConverter : DataSetBasedExternalConverterBase {
+        class Messages {
+            public const string Trace_LevelWithExpressionIsNotSupported_Format = "Level with Expression '{0}' is not supported.";
+            public const string Text_UnsupportedControl_Format = "The '{0}' control is not supported.";
+            public const string MessageBox_InstallPrinter = "At least one printer needs to be installed before reports can be imported from Microsoft Access.\nDo you want to install a printer now?";
+            public const string CommandLine_ReportIndex_Warning = "[ReportIndex] argument should be from 0 to {0}.";
+        }
+
         AccessInterop._Application app = null;
         AccessReportBase accessReport;
         protected AccessReportBase AccessReport {
@@ -30,10 +36,16 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
+        readonly string reportName; // used in Console Import only
+        readonly int? reportIndex; // used in Console Import only
         public AccessConverter() {
         }
+        public AccessConverter(string reportName, int? reportIndex) {
+            this.reportName = reportName;
+            this.reportIndex = reportIndex;
+        }
 
-        static Type[] bandTypes = new Type[] {
+        static readonly Type[] bandTypes = {
             typeof(DetailBand),
             typeof(ReportHeaderBand),
             typeof(ReportFooterBand),
@@ -44,8 +56,6 @@ namespace DevExpress.XtraReports.Import {
             typeof(GroupHeaderBand),
             typeof(GroupFooterBand)
         };
-        static AccessConverter() {
-        }
 
         bool assignNavigateUrlUseReflection;
         void AssignNavigateUrl(XRControl xrControl, AccessInterop.Hyperlink hyperlink) {
@@ -58,8 +68,8 @@ namespace DevExpress.XtraReports.Import {
             xrControl.Borders = ToBorderSide(borderStyle);
             xrControl.BorderWidth = Math.Max(1, PointsToPixel(borderWidth));
         }
-        static void AssignBackColor(XRControl xrControl, int backColor, byte backStyle) {
-            xrControl.BackColor = (backStyle == 0) ? Color.Transparent : ToColor(backColor);
+        static void AssignBackColor(XRControl xrControl, int backColor, byte backStyle, Color? defaultBackColor = null) {
+            xrControl.BackColor = backStyle == 0 ? (defaultBackColor ?? Color.Transparent) : ToColor(backColor);
         }
         static void AssignBounds(XRControl xrControl, short x, short y, short width, short height) {
             xrControl.Bounds = XRConvert.Convert(new Rectangle(x, y, width, height), GraphicsDpi.Twips, GraphicsDpi.HundredthsOfAnInch);
@@ -115,16 +125,16 @@ namespace DevExpress.XtraReports.Import {
                     return DashStyle.Custom;
             }
         }
-        static DevExpress.XtraPrinting.TextAlignment MakeTextAlignment(byte textAlign) {
+        static TextAlignment MakeTextAlignment(byte textAlign) {
             switch(textAlign) {
                 case 2:
-                    return DevExpress.XtraPrinting.TextAlignment.TopCenter;
+                    return TextAlignment.TopCenter;
                 case 3:
-                    return DevExpress.XtraPrinting.TextAlignment.TopRight;
+                    return TextAlignment.TopRight;
                 case 4:
-                    return DevExpress.XtraPrinting.TextAlignment.TopJustify;
+                    return TextAlignment.TopJustify;
                 default:
-                    return DevExpress.XtraPrinting.TextAlignment.TopLeft;
+                    return TextAlignment.TopLeft;
             }
         }
         static ImageSizeMode ToImageSizeMode(byte sizeMode) {
@@ -139,18 +149,18 @@ namespace DevExpress.XtraReports.Import {
                     return ImageSizeMode.StretchImage;
             }
         }
-        static ImageViewMode ToImageViewMode(byte sizeMode) {
-            switch(sizeMode) {
-                case 0:
-                    return ImageViewMode.Clip;
-                case 1:
-                    return ImageViewMode.Stretch;
-                case 3:
-                    return ImageViewMode.Zoom;
-                default:
-                    return ImageViewMode.Stretch;
-            }
-        }
+        //static ImageViewMode ToImageViewMode(byte sizeMode) {
+        //    switch(sizeMode) {
+        //        case 0:
+        //            return ImageViewMode.Clip;
+        //        case 1:
+        //            return ImageViewMode.Stretch;
+        //        case 3:
+        //            return ImageViewMode.Zoom;
+        //        default:
+        //            return ImageViewMode.Stretch;
+        //    }
+        //}
         string GetFormName(AccessInterop.Form form) {
             try {
                 return form.Name;
@@ -216,14 +226,6 @@ namespace DevExpress.XtraReports.Import {
 
             return "{0:" + format + '}';
         }
-        static string MakeDataMember(string controlSource) {
-            controlSource = controlSource.Trim();
-            if(!string.IsNullOrEmpty(controlSource) && controlSource[0] == '=')
-                return string.Empty;
-            else
-                return controlSource;
-        }
-
         void CloseDatabase() {
             if(app != null) {
                 app.CloseCurrentDatabase();
@@ -231,12 +233,23 @@ namespace DevExpress.XtraReports.Import {
             }
         }
         XRControl CreateXRControl(AccessInterop.Control src) {
-            Type xrType = src is AccessInterop.PageBreak ? typeof(XRPageBreak) :
-                src is AccessInterop.Image ? typeof(XRPictureBox) :
-                src is AccessInterop.Line ? typeof(XRLine) :
-                src is AccessInterop.CheckBox ? typeof(XRCheckBox) :
-                src is AccessInterop.Rectangle ? typeof(XRControl) :
-                typeof(XRLabel);
+            Type xrType = src is AccessInterop.PageBreak
+                ? typeof(XRPageBreak)
+                : src is AccessInterop.Image
+                ? typeof(XRPictureBox)
+                : src is AccessInterop.Line
+                ? typeof(XRLine)
+                : src is AccessInterop.CheckBox
+                ? typeof(XRCheckBox)
+                : src is AccessInterop.Rectangle
+                ? typeof(XRPanel)
+                : src is AccessInterop.TextBox || src is AccessInterop.Label
+                ? typeof(XRLabel)
+                : null;
+            if(xrType == null) {
+                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Text_UnsupportedControl_Format, src.GetType().Name));
+                xrType = typeof(XRLabel);
+            }
             return CreateXRControl(xrType);
         }
 
@@ -281,7 +294,13 @@ namespace DevExpress.XtraReports.Import {
                 TargetReport.PaperKind = PaperKind.Custom;
 
                 TargetReport.PageWidth = TwipsToHOI(report.LogicalPageWidth + leftMargin + rightMargin);
-                TargetReport.PageHeight = TwipsToHOI(report.LogicalPageHeight + topMargin + bottomMargin);
+                int logicalPageHeight;
+                try {
+                    logicalPageHeight = report.LogicalPageHeight;
+                } catch(COMException) {
+                    logicalPageHeight = 7 * report.LogicalPageWidth / 5;
+                }
+                TargetReport.PageHeight = TwipsToHOI(logicalPageHeight + topMargin + bottomMargin);
 
                 TargetReport.Margins.Top = TwipsToHOI(topMargin);
                 TargetReport.Margins.Bottom = TwipsToHOI(bottomMargin);
@@ -293,30 +312,55 @@ namespace DevExpress.XtraReports.Import {
                 detail.MultiColumn.ColumnCount = itemsAcross;
                 detail.MultiColumn.Direction = itemLayout == PM_AcrossThenDown ? ColumnDirection.AcrossThenDown : ColumnDirection.DownThenAcross;
                 */
-            } catch {
+            } catch(Exception e) {
+                Tracer.TraceError(NativeSR.TraceSource, e);
             }
         }
 
         void ConvertLabelToXRLabel(AccessInterop.Label source, XRLabel target) {
-            if(source == null) {
+            SetControlName(target, source.Name);
+            AssignBackColor(target, source.BackColor, source.BackStyle);
+            AssignBorderStyle(target, source.BorderColor, source.BorderStyle, source.BorderWidth);
+            AssignBounds(target, source.Left, source.Top, source.Width, source.Height);
+            AssingPadding(target, source.LeftMargin, source.TopMargin, source.RightMargin, source.BottomMargin);
+            target.Text = source.Caption;
+            target.Font = new Font(source.FontName, source.FontSize, MakeFontStyle(source.FontBold, source.FontItalic, source.FontUnderline));
+            target.ForeColor = ToColor(source.ForeColor);
+            target.TextAlignment = MakeTextAlignment(source.TextAlign);
+            target.Visible = source.Visible;
+            target.CanGrow = false;
+            AssignNavigateUrl(target, source.Hyperlink);
+        }
+        void ConvertUnsupportedLabel(AccessInterop.Control src, XRLabel target) {
+            SetControlName(target, src.Name);
+            if(src is AccessInterop.SubForm) {
+                var subform = (AccessInterop.SubForm)src;
+                AssignBounds(target,
+                    GetPropertyValue(() => subform.Left, (short)0),
+                    GetPropertyValue(() => subform.Top, (short)0),
+                    GetPropertyValue(() => subform.Width, (short)150),
+                    GetPropertyValue(() => subform.Height, (short)50));
+            } else if(src is AccessInterop.BoundObjectFrame) {
+                var boundObjectFrame = (AccessInterop.BoundObjectFrame)src;
+                AssignBounds(target,
+                    GetPropertyValue(() => boundObjectFrame.Left, (short)0),
+                    GetPropertyValue(() => boundObjectFrame.Top, (short)0),
+                    GetPropertyValue(() => boundObjectFrame.Width, (short)150),
+                    GetPropertyValue(() => boundObjectFrame.Height, (short)50));
+            } else
                 target.Size = new Size(150, 50);
-                target.Text = "A control currently is unsupported for import";
-            } else {
-                SetControlName(target, source.Name);
-                AssignBackColor(target, source.BackColor, source.BackStyle);
-                AssignBorderStyle(target, source.BorderColor, source.BorderStyle, source.BorderWidth);
-                AssignBounds(target, source.Left, source.Top, source.Width, source.Height);
-                AssingPadding(target, source.LeftMargin, source.TopMargin, source.RightMargin, source.BottomMargin);
-                target.Text = source.Caption;
-                target.Font = new Font(source.FontName, source.FontSize, MakeFontStyle(source.FontBold, source.FontItalic, source.FontUnderline));
-                target.ForeColor = ToColor(source.ForeColor);
-                target.TextAlignment = MakeTextAlignment(source.TextAlign);
-                target.Visible = source.Visible;
-                target.CanGrow = false;
-                AssignNavigateUrl(target, source.Hyperlink);
+            target.Text = string.Format(Messages.Text_UnsupportedControl_Format, src.GetType().Name);
+        }
+        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+        static T GetPropertyValue<T>(Func<T> getValue, T defaultValue) {
+            try {
+                return getValue();
+            } catch(Exception e) {
+                if(e is AccessViolationException || e is COMException)
+                    return defaultValue;
+                throw;
             }
         }
-
         void ConvertTextBoxToXRLabel(AccessInterop.TextBox src, XRLabel tgt) {
             SetControlName(tgt, src.Name);
             AssignBackColor(tgt, src.BackColor, src.BackStyle);
@@ -340,7 +384,7 @@ namespace DevExpress.XtraReports.Import {
                 tgt.Angle = -90;
             tgt.Visible = src.Visible;
 
-            BindDataToControl(tgt, "Text", MakeDataMember(src.ControlSource), MakeFormat(src.Format, src.DecimalPlaces));
+            BindAccessDataToControl(tgt, nameof(tgt.Text), src.ControlSource, MakeFormat(src.Format, src.DecimalPlaces));
             AssignNavigateUrl(tgt, src.Hyperlink);
         }
 
@@ -390,9 +434,9 @@ namespace DevExpress.XtraReports.Import {
                 tgt.LineDirection = LineDirection.Horizontal;
         }
 
-        void ConvertRectangle(AccessInterop.Rectangle src, XRControl tgt) {
+        void ConvertRectangle(AccessInterop.Rectangle src, XRPanel tgt) {
             SetControlName(tgt, src.Name);
-            AssignBackColor(tgt, src.BackColor, src.BackStyle);
+            AssignBackColor(tgt, src.BackColor, src.BackStyle, Color.Black);
             AssignBorderStyle(tgt, src.BorderColor, 1, src.BorderWidth);
             AssignBounds(tgt, src.Left, src.Top, src.Width, src.Height);
             tgt.Visible = src.Visible;
@@ -409,24 +453,35 @@ namespace DevExpress.XtraReports.Import {
             //src.TripleState;
             tgt.Visible = src.Visible;
 
-            BindDataToControl(tgt, "CheckState", MakeDataMember(src.ControlSource));
+            BindAccessDataToControl(tgt, nameof(tgt.CheckState), src.ControlSource);
+        }
+        void BindAccessDataToControl(XRControl tgt, string propertyName, string accessControlSource, string formatString = "") {
+            accessControlSource = accessControlSource.Trim();
+            if(!string.IsNullOrEmpty(accessControlSource) && accessControlSource[0] == '=') {
+                string exscapedExpressionBindingStub = string.Format("Iif(True, '{0}', '{1}')", Design.Import.CrystalFormula.FormulaParser.NotSupportedStub, accessControlSource.Replace("'", "''"));
+                tgt.ExpressionBindings.Add(new ExpressionBinding(propertyName, exscapedExpressionBindingStub));
+            } else {
+                BindDataToControl(tgt, propertyName, accessControlSource, formatString);
+            }
         }
 
         void ConvertAccessControlToXRControl(AccessInterop.Control src, XRControl tgt) {
             if(src is AccessInterop.TextBox)
-                ConvertTextBoxToXRLabel(src as AccessInterop.TextBox, tgt as XRLabel);
+                ConvertTextBoxToXRLabel((AccessInterop.TextBox)src, (XRLabel)tgt);
             else if(src is AccessInterop.PageBreak)
-                ConvertPageBreak(src as AccessInterop.PageBreak, tgt as XRPageBreak);
+                ConvertPageBreak((AccessInterop.PageBreak)src, (XRPageBreak)tgt);
             else if(src is AccessInterop.Image)
-                ConvertPictureBox(src as AccessInterop.Image, tgt as XRPictureBox);
+                ConvertPictureBox((AccessInterop.Image)src, (XRPictureBox)tgt);
             else if(src is AccessInterop.Line)
-                ConvertLine(src as AccessInterop.Line, tgt as XRLine);
+                ConvertLine((AccessInterop.Line)src, (XRLine)tgt);
             else if(src is AccessInterop.CheckBox)
-                ConvertCheckBox(src as AccessInterop.CheckBox, tgt as XRCheckBox);
+                ConvertCheckBox((AccessInterop.CheckBox)src, (XRCheckBox)tgt);
             else if(src is AccessInterop.Rectangle)
-                ConvertRectangle(src as AccessInterop.Rectangle, tgt);
+                ConvertRectangle((AccessInterop.Rectangle)src, (XRPanel)tgt);
+            else if(src is AccessInterop.Label)
+                ConvertLabelToXRLabel((AccessInterop.Label)src, (XRLabel)tgt);
             else
-                ConvertLabelToXRLabel(src as AccessInterop.Label, tgt as XRLabel);
+                ConvertUnsupportedLabel(src, (XRLabel)tgt);
         }
 
         void ConvertControls(AccessInterop._Section src, Band tgt) {
@@ -435,7 +490,8 @@ namespace DevExpress.XtraReports.Import {
                 tgt.Controls.Add(xrControl);
                 try {
                     ConvertAccessControlToXRControl(ctrl, xrControl);
-                } catch {
+                } catch(Exception e) {
+                    Tracer.TraceError(NativeSR.TraceSource, e);
                 }
             }
             //			for(int i = 0; i < src.Controls.Count; i++) {
@@ -465,12 +521,15 @@ namespace DevExpress.XtraReports.Import {
 
         GroupHeaderBand ConvertGroupHeaderSection(AccessInterop.GroupLevel level, int sectionIndex) {
             AccessInterop._Section section = AccessReport.GetSection(sectionIndex);
-            if(section == null) {
-                return null;
-            }
             GroupHeaderBand header = GetOrCreateBandByType<GroupHeaderBand>();
-            ConvertSection(section, header);
-            header.GroupFields.Add(new GroupField(level.ControlSource, level.SortOrder ? XRColumnSortOrder.Descending : XRColumnSortOrder.Ascending));
+            if(section != null)
+                ConvertSection(section, header);
+            else
+                header.HeightF = 0;
+            string levelControlSource = level.ControlSource;
+            if(!string.IsNullOrEmpty(levelControlSource) && (levelControlSource.Contains("[") || levelControlSource.Contains("&") || levelControlSource.Contains("=")))
+                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Trace_LevelWithExpressionIsNotSupported_Format, levelControlSource));
+            header.GroupFields.Add(new GroupField(levelControlSource, level.SortOrder ? XRColumnSortOrder.Descending : XRColumnSortOrder.Ascending));
             return header;
         }
 
@@ -570,6 +629,9 @@ namespace DevExpress.XtraReports.Import {
 
                 TargetReport.ReportUnit = ReportUnit.HundredthsOfAnInch;
                 ConvertPageSettings(AccessReport);
+                SetControlName(TargetReport, AccessReport.Name);
+                if(TargetReport.Name != AccessReport.Name)
+                    TargetReport.DisplayName = AccessReport.Name;
                 ConvertSections();
             } finally {
                 CursorStorage.RestoreCursor();
@@ -594,7 +656,8 @@ namespace DevExpress.XtraReports.Import {
             } catch {
                 try {
                     app.DoCmd.GetType().InvokeMember("OpenReport", BindingFlags.InvokeMethod | BindingFlags.Instance, null, app.DoCmd, new object[] { reportName, AccessInterop.AcView.acViewDesign, "", "" });
-                } catch {
+                } catch(Exception e) {
+                    Tracer.TraceError(NativeSR.TraceSource, e);
                 }
             }
             accessReport = null;
@@ -602,7 +665,7 @@ namespace DevExpress.XtraReports.Import {
 
         protected override void ConvertInternal(string fileName) {
             if(PrinterSettings.InstalledPrinters.Count == 0) {
-                if(MessageBox.Show("At least one printer needs to be installed before reports can be imported from Microsoft Access.\nDo you want to install a printer now?",
+                if(MessageBox.Show(Messages.MessageBox_InstallPrinter,
                                     "Import", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
                     return;
                 System.Diagnostics.Process process = new System.Diagnostics.Process();
@@ -626,18 +689,25 @@ namespace DevExpress.XtraReports.Import {
                 AccessInterop.AllObjects allReports = app.GetAllReports();
                 string[] reportNames = GetReportNames(allReports);
                 string reportName = "";
-                if(reportNames.Length == 1) {
+                if(!string.IsNullOrEmpty(this.reportName)) {
+                    reportName = this.reportName;
+                } else if(reportIndex.HasValue) {
+                    if(reportIndex.Value < 0 || reportIndex.Value >= reportNames.Length)
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.CommandLine_ReportIndex_Warning, reportNames.Length - 1));
+                    else
+                        reportName = reportNames[reportIndex.Value];
+                } else if(reportNames.Length == 1) {
                     reportName = reportNames[0];
                 } else {
-                    AccessReportSelectionForm dlg = new AccessReportSelectionForm();
-                    var designerHost = TargetReport.Site.GetService<IDesignerHost>();
-                    LookAndFeel.DesignService.DesignLookAndFeelHelper.SetParentLookAndFeel(dlg, designerHost);
-                    dlg.SetReportsList(reportNames);
-                    IWin32Window owner = DialogRunner.GetOwnerWindow();
-                    if(dlg.ShowDialog(owner) == DialogResult.OK && dlg.SelectedReport != String.Empty) {
-                        reportName = dlg.SelectedReport;
+                    using(var dlg = new AccessReportSelectionForm()) {
+                        var designerHost = TargetReport.Site.GetService<IDesignerHost>();
+                        LookAndFeel.DesignService.DesignLookAndFeelHelper.SetParentLookAndFeel(dlg, designerHost);
+                        dlg.SetReportsList(reportNames);
+                        IWin32Window owner = DialogRunner.GetOwnerWindow();
+                        if(dlg.ShowDialog(owner) == DialogResult.OK && !string.IsNullOrEmpty(dlg.SelectedReport)) {
+                            reportName = dlg.SelectedReport;
+                        }
                     }
-                    dlg.Dispose();
                 }
                 if(!string.IsNullOrEmpty(reportName)) {
                     OpenReport(reportName);

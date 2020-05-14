@@ -128,11 +128,12 @@ namespace DevExpress.XtraReports.Import {
             NamingMapper = new ComponentNamingMapper(TargetReport);
         }
 
-        protected virtual void BindDataToControl(XRControl control, string property, string dataMember, string formatString) {
+        protected virtual void BindDataToControl(XRControl control, string property, string dataMember, string formatString = "") {
             try {
                 if(!string.IsNullOrEmpty(dataMember))
-                    control.DataBindings.Add(property, TargetReport.DataSource, dataMember, formatString);
-            } catch {
+                    control.DataBindings.Add(property, TargetReport.DataSource, dataMember, formatString ?? string.Empty);
+            } catch(Exception e) {
+                XtraPrinting.Tracer.TraceWarning(XtraPrinting.Native.NativeSR.TraceSource, e);
             }
         }
 

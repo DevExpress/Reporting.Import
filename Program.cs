@@ -38,6 +38,8 @@ namespace DevExpress.XtraReports.Import {
                     "              path1 Specifies the input file's location and type.",
 #if Access
                     "                    *.mdb or *.mde file matches MS Access reports.",
+                    "              /access:ReportIndex=[Number]",
+                    "              /access:ReportName=[String]",
 #endif
 #if Active
                     "                    *.rpx file matches ActiveReports.",
@@ -55,9 +57,20 @@ namespace DevExpress.XtraReports.Import {
         }
         static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary, string outputPath) {
 #if Access
-            AccessReportSelectionForm.AccessIconResourceName = typeof(AccessConverter).Namespace + ".Import.AccessReport.bmp";
-            if(extension == ".mdb" || extension == ".mde")
-                return new AccessConverter();
+            if(extension == ".mdb" || extension == ".mde") {
+                AccessReportSelectionForm.AccessIconResourceName = typeof(AccessConverter).Namespace + ".Import.AccessReport.bmp";
+                Dictionary<string, string> accessProperties = CreateSubArg(argDictionary, "/access");
+                string reportName;
+                accessProperties.TryGetValue("ReportName", out reportName);
+                string reportIndexStr;
+                int? reportIndex = null;
+                if(accessProperties.TryGetValue("ReportIndex", out reportIndexStr)) {
+                    int reportIndexLocal;
+                    if(int.TryParse(reportIndexStr, out reportIndexLocal))
+                        reportIndex = reportIndexLocal;
+                }
+                return new AccessConverter(reportName, reportIndex);
+            }
 #endif
 #if Active
             if(extension == ".rpx")

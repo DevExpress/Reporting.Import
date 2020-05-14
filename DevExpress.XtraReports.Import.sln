@@ -6,10 +6,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevExpress.XtraReports.Impo
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug_Access|Any CPU = Debug_Access|Any CPU
+		Debug_Active|Any CPU = Debug_Active|Any CPU
+		Debug_Crystal|Any CPU = Debug_Crystal|Any CPU
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Access|Any CPU.ActiveCfg = Debug_Access|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Access|Any CPU.Build.0 = Debug_Access|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Active|Any CPU.ActiveCfg = Debug_Active|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Active|Any CPU.Build.0 = Debug_Active|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Crystal|Any CPU.ActiveCfg = Debug_Crystal|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Crystal|Any CPU.Build.0 = Debug_Crystal|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
