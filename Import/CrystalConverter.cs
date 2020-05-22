@@ -932,9 +932,12 @@ namespace DevExpress.XtraReports.Import {
                 return;
             }
             for(int i = reportBands.Count - 1; i >= 0; i--) {
-                GroupField groupField = new GroupField(groups[i].ConditionField.Name);
+                Cr.Group crystalGroup = groups[i];
+                string crystalConditionFieldName = crystalGroup.ConditionField.Name;
+                GroupField groupField = new GroupField(crystalConditionFieldName);
+                // todo: (DateTimeCondition)crystalGroup.GroupOptions.Condition
                 foreach(SortField field in dataDefinition.SortFields) {
-                    if(field.Field.Name == groups[i].ConditionField.Name) {
+                    if(field.Field.Name == crystalConditionFieldName) {
                         groupField.SortOrder = field.SortDirection == SortDirection.AscendingOrder
                             ? XRColumnSortOrder.Ascending
                             : XRColumnSortOrder.Descending;
@@ -1348,6 +1351,12 @@ namespace DevExpress.XtraReports.Import {
             string dataMember = crystalFormulaName;
             if(isGrouping)
                 dataMember = dataMember.Replace("GroupName ", string.Empty).Trim('(', ')');
+            int indexOfComma = dataMember.IndexOf(",");
+            if(indexOfComma >= 0) {
+                string groupBy = dataMember.Substring(indexOfComma + 1).Trim(' ');
+                dataMember = dataMember.Substring(0, indexOfComma);
+                Tracer.TraceError(NativeSR.TraceSource, string.Format(Messages.Warning_DataBinding_GroupByKindNotSupported_Format, controlName, groupBy));
+            }
             dataMember = dataMember.Trim('{', '}');
             string resultDataMember;
             if(isFormula) {

@@ -23,6 +23,7 @@
             Warning_CalculatedField_FormulaNotFound_Format = "Cannot find the '{0}' formula used in the '{1}' calculated field.",
             Warning_DataBinding_SqlExpressionFieldNotSupported_Format = "SQL Expression Fields are not supported (field '{0}' is used in control '{0}').",
             Warning_DataBinding_FormulaNotFound_Format = "Cannot find the '{0}' formula used in the '{1}' control binding.",
+            Warning_DataBinding_GroupByKindNotSupported_Format = "Cannot convert the '{0}' control - grouping by {1} is not supported. Create a CalculatedField and group by it.",
             Warning_CalculatedField_ParameterNotFound_Format = "Cannot find the '{0}' parameter used in the '{1}' calculated field.",
             Warning_DataSourceSP_ParameterNotFound_Format = "Cannot find the '{0}' parameter used in the '{1}' datasource stored procedure query.",
             Warning_DataSourceSP_Limitation = "The converted report may include issues because the original report contains multiple stored procedures.",
