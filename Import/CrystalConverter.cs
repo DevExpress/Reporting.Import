@@ -1349,13 +1349,14 @@ namespace DevExpress.XtraReports.Import {
 
         string GetActualDataMember(string crystalFormulaName, string controlName, bool isGrouping = false, bool isFormula = false) {
             string dataMember = crystalFormulaName;
-            if(isGrouping)
+            if(isGrouping) {
                 dataMember = dataMember.Replace("GroupName ", string.Empty).Trim('(', ')');
-            int indexOfComma = dataMember.IndexOf(",");
-            if(indexOfComma >= 0) {
-                string groupBy = dataMember.Substring(indexOfComma + 1).Trim(' ');
-                dataMember = dataMember.Substring(0, indexOfComma);
-                Tracer.TraceError(NativeSR.TraceSource, string.Format(Messages.Warning_DataBinding_GroupByKindNotSupported_Format, controlName, groupBy));
+                int indexOfComma = dataMember.IndexOf(",");
+                if(indexOfComma >= 0) {
+                    string groupBy = dataMember.Substring(indexOfComma + 1).Trim(' ');
+                    dataMember = dataMember.Substring(0, indexOfComma);
+                    Tracer.TraceError(NativeSR.TraceSource, string.Format(Messages.Warning_DataBinding_GroupByKindNotSupported_Format, controlName, groupBy));
+                }
             }
             dataMember = dataMember.Trim('{', '}');
             string resultDataMember;
