@@ -1,7 +1,7 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace DevExpress.XtraReports.Import {
     class Program {
@@ -9,25 +9,23 @@ namespace DevExpress.XtraReports.Import {
             try {
                 Dictionary<string, string> argDictionary = CreateArgDictionary(args);
                 string inputFile;
-                if(!argDictionary.TryGetValue("/in", out inputFile))
-                    throw new ArgumentException();
                 string outputFile;
-                if(!argDictionary.TryGetValue("/out", out outputFile))
-                    throw new ArgumentException();
+                if(!argDictionary.TryGetValue("/in", out inputFile) || !argDictionary.TryGetValue("/out", out outputFile)) {
+                    WriteInfo();
+                    return;
+                }
                 string path = Path.GetFullPath(inputFile);
-                if(!File.Exists(path))
-                    throw new Exception("File \"" + path + "\" doesn't exist.");
+                if(!File.Exists(path)) {
+                    Console.WriteLine("File \"" + path + "\" doesn't exist.");
+                    return;
+                }
                 ConfigureTracer();
 
                 ConverterBase converter = CreateConverter(Path.GetExtension(path), argDictionary, outputFile);
                 ConversionResult conversionResult = converter.Convert(path);
                 conversionResult.TargetReport.SaveLayoutToXml(outputFile);
             } catch(Exception ex) {
-                if(ex is ArgumentException) {
-                    WriteInfo();
-                } else {
-                    Console.WriteLine(ex.Message);
-                }
+                Console.WriteLine(ex.Message);
             }
         }
         static void WriteInfo() {
