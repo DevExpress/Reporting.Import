@@ -88,17 +88,17 @@ namespace DevExpress.XtraReports.Import {
                 return crystalConverter;
             }
 #endif
-            throw new ArgumentException();
+            throw new ArgumentException($"File extension '{extension}' is not supported.");
         }
 
         static Dictionary<string, string> CreateArgDictionary(string[] args) {
             if(args.Length < 2)
-                throw new ArgumentException();
+                throw new ArgumentException("Expected two or more aguments.");
             Dictionary<string, string> argDictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach(string arg in args) {
                 string[] items = arg.Split(new char[] { ':' }, 2);
                 if(items.Length < 2)
-                    throw new ArgumentException();
+                    throw new ArgumentException("A value should be specified after the colon.");
                 argDictionary.Add(items[0], items[1]);
             }
             return argDictionary;
