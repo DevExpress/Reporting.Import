@@ -79,73 +79,76 @@
     <Reference Include="CrystalDecisions.Shared">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Pdf.v19.2.Core">
+    <Reference Include="DevExpress.Pdf.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.RichEdit.v19.2.Export">
+    <Reference Include="DevExpress.RichEdit.v20.2.Export">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Printing.v19.2.Core">
+    <Reference Include="DevExpress.Printing.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Utils.v19.2">
+    <Reference Include="DevExpress.Data.Desktop.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Data.v19.2">
+    <Reference Include="DevExpress.Utils.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraEditors.v19.2">
+    <Reference Include="DevExpress.Data.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraPrinting.v19.2">
+    <Reference Include="DevExpress.XtraEditors.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Charts.v19.2.Core">
+    <Reference Include="DevExpress.XtraPrinting.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraCharts.v19.2.Wizard">
+    <Reference Include="DevExpress.Charts.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraCharts.v19.2">
+    <Reference Include="DevExpress.XtraCharts.v20.2.Wizard">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Office.v19.2.Core">
+    <Reference Include="DevExpress.XtraCharts.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.RichEdit.v19.2.Core">
+    <Reference Include="DevExpress.Office.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraReports.v19.2.Extensions">
+    <Reference Include="DevExpress.RichEdit.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Images.v19.2">
+    <Reference Include="DevExpress.XtraReports.v20.2.Extensions">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraRichEdit.v19.2">
+    <Reference Include="DevExpress.Images.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.PivotGrid.v19.2.Core">
+    <Reference Include="DevExpress.XtraRichEdit.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraPivotGrid.v19.2">
+    <Reference Include="DevExpress.PivotGrid.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Sparkline.v19.2.Core">
+    <Reference Include="DevExpress.XtraPivotGrid.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.CodeParser.v19.2">
+    <Reference Include="DevExpress.Sparkline.v20.2.Core">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Utils.v19.2.UI">
+    <Reference Include="DevExpress.CodeParser.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.XtraReports.v19.2">
+    <Reference Include="DevExpress.Utils.v20.2.UI">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.DataAccess.v19.2">
+    <Reference Include="DevExpress.XtraReports.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="DevExpress.Xpo.v19.2">
+    <Reference Include="DevExpress.DataAccess.v20.2">
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="DevExpress.Xpo.v20.2">
       <SpecificVersion>False</SpecificVersion>
     </Reference>
     <Reference Include="GrapeCity.ActiveReports.Document.v11">
@@ -166,6 +169,7 @@
     </Reference>
     <Reference Include="System.Xml">
     </Reference>
+    <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AssemblyInfo.cs">
@@ -192,8 +196,27 @@
     <Compile Include="Import\CrystalFormula\FormulaParserException.cs" />
     <Compile Include="Import\CrystalFormula\Messages.cs" />
     <Compile Include="Import\DataSetBasedExternalConverterBase.cs" />
+    <Compile Include="Import\DataSetToSqlDataSourceConverter.cs" />
     <Compile Include="Import\ExternalConverterBase.cs" />
     <Compile Include="Import\Interop.cs" />
+    <Compile Include="Import\ReportingServicesConverter.cs" />
+    <Compile Include="Import\ReportingServices\DataSources\DataSourceConverter.cs" />
+    <Compile Include="Import\ReportingServices\DataSources\ExternalDataSetConverter.cs" />
+    <Compile Include="Import\ReportingServices\Expressions\ExpressionGrammar.cs" />
+    <Compile Include="Import\ReportingServices\Expressions\ExpressionLexer.cs" />
+    <Compile Include="Import\ReportingServices\Expressions\ExpressionParser.cs" />
+    <Compile Include="Import\ReportingServices\Messages.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\BandsConverter.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\ExpressionMember.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\Filter.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\HeaderModel.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\Hierarchy.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\Model.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\RowModel.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\SortExpressionMember.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixConverter.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixMember.cs" />
+    <Compile Include="Import\ReportingServices\UnitConverter.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ResFinder.cs" />
   </ItemGroup>
@@ -205,6 +228,8 @@
     <None Include="Import\CrystalFormula\FormulaGrammar.y">
       <Generator>Yacc</Generator>
     </None>
+    <None Include="Import\ReportingServices\Expressions\ExpressionGrammar.y" />
+    <None Include="Import\ReportingServices\Expressions\grammar.cmd" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

@@ -46,6 +46,8 @@ namespace DevExpress.XtraReports.Import {
                     "                    *.rpt file matches Crystal Reports.",
                     "              /crystal:UnrecognizedFunctionBehavior=Ignore",
 #endif
+                    "                    *.rdl or *.rdlc file matches MS SQL Server Reporting Services.",
+                    "              /ssrs:UnrecognizedFunctionBehavior=Ignore",
                     "",
                     "              path2 Specifies the output file's location.\r\n",
                     @"For more information, see https://github.com/DevExpress/Reporting.Import"
@@ -88,6 +90,17 @@ namespace DevExpress.XtraReports.Import {
                 return crystalConverter;
             }
 #endif
+            if(extension == ".rdl" || extension == ".rdlc") {
+                Dictionary<string, string> ssrsProperties = CreateSubArg(argDictionary, "/ssrs");
+                string unrecognizedFunctionBehavior;
+                var crystalConverter = new ReportingServicesConverter();
+                if(ssrsProperties.TryGetValue("UnrecognizedFunctionBehavior", out unrecognizedFunctionBehavior)) {
+                    crystalConverter.UnrecognizedFunctionBehavior = string.Equals(unrecognizedFunctionBehavior, nameof(UnrecognizedFunctionBehavior.Ignore))
+                        ? UnrecognizedFunctionBehavior.Ignore
+                        : UnrecognizedFunctionBehavior.InsertWarning;
+                }
+                return crystalConverter;
+            }
             throw new ArgumentException($"File extension '{extension}' is not supported.");
         }
 

@@ -311,8 +311,8 @@ namespace DevExpress.XtraReports.Import {
             return (DevExpress.XtraReports.UI.SummaryFunc)summaryFuncMap[type];
         }
         static string MakeOutputFormat(string arOutputFormat) {
-            if(arOutputFormat == null || arOutputFormat == String.Empty)
-                return String.Empty;
+            if(string.IsNullOrEmpty(arOutputFormat))
+                return string.Empty;
             if(arOutputFormat.ToUpper() == "CURRENCY")
                 arOutputFormat = "C";
 

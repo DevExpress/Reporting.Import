@@ -453,7 +453,7 @@ namespace DevExpress.XtraReports.Import {
             //src.TripleState;
             tgt.Visible = src.Visible;
 
-            BindAccessDataToControl(tgt, nameof(tgt.CheckState), src.ControlSource);
+            BindAccessDataToControl(tgt, nameof(tgt.CheckBoxState), src.ControlSource);
         }
         void BindAccessDataToControl(XRControl tgt, string propertyName, string accessControlSource, string formatString = "") {
             accessControlSource = accessControlSource.Trim();
