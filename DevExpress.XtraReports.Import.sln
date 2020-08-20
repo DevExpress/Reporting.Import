@@ -9,6 +9,7 @@ Global
 		Debug_Access|Any CPU = Debug_Access|Any CPU
 		Debug_Active|Any CPU = Debug_Active|Any CPU
 		Debug_Crystal|Any CPU = Debug_Crystal|Any CPU
+		Debug_SSRS|Any CPU = Debug_SSRS|Any CPU
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
@@ -19,6 +20,8 @@ Global
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Active|Any CPU.Build.0 = Debug_Active|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Crystal|Any CPU.ActiveCfg = Debug_Crystal|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_Crystal|Any CPU.Build.0 = Debug_Crystal|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_SSRS|Any CPU.ActiveCfg = Debug_SSRS|Any CPU
+		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug_SSRS|Any CPU.Build.0 = Debug_SSRS|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7F11156F-DE34-4101-BA74-E718F65A51BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -26,5 +29,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DF2FAE80-C70C-4483-A095-AC9E05FE26C7}
 	EndGlobalSection
 EndGlobal

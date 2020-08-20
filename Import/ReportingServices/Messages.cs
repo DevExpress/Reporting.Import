@@ -1,6 +1,7 @@
 ﻿namespace DevExpress.XtraReports.Import.ReportingServices {
     static class Messages {
         public const string
+            NotConvertedControl_Stub = "NOT CONVERTED",
             InvalidFormat_Error = "The specified version of a report definition is not supported.",
             ProcessControlLayout_Shape_Error = "Control should not be of XRShape type.",
             ControlLayoutProperty_NotSupported_Format = "Layout property '{0}' is not supported.",
@@ -8,6 +9,7 @@
             PaddingProperty_NotSupported_Format = "Padding side '{0}' is not supported.",
             ParameterProperty_NotSupported_Format = "Parameter property '{0}' is not supported.",
             LayoutGenericError_Format = "Failed to process the '{0}' element in the '{1}' parent with the {2}.",
+            NestedMatrix_NotSupported_Format = "Cannot convert Matrix to Detail band inside the '{0}' {1} container, Band only supported.",
             ImageElement_NotSupported_Format = "Image element '{0}' is not supported.",
             CodeModules_NotSupported = "Code Modules are not supported.",
             Code_NotSupported = "Code is not supported.",
@@ -23,12 +25,27 @@
             RichParagraphElement_NotSupported_Format = "Rich Paragraph '{0}' element not supported.",
             TableControl_NotSupported = "Table control is not supported.",
             ListControl_NotSupported = "List control is not supported.",
+            ParameterDynamicLookups_NotSupported = "Parameter dynamic lookups are not supported.",
+            ParameterValueSource_NotSupported_Format = "Unsupported parameter values source: '{0}'.",
+            TextAlign_Expression_NotSupported = "Expression for the Style property 'TextAlign' is not supported.",
+            VerticalAlign_Expression_NotSupported = "Expression for the Style property 'VerticalAlign' is not supported.",
+            ReportMeasureUnit_NotSupported_Format = "Report measure unit '{0}' is not supported.",
+            RichTextRunElement_NotSupported_Format = "RichText Run element '{0}' is not supported.",
+            RichTextRunStyle_NotSupported_Format = "RichText Run style '{0}' is not supported.",
+            RichTextParagraphElement_NotSupported_Format = "RichText Paragraph element '{0}' is not supported.",
+            ImageSourceType_NotSupported_Format = "ImageControl SourceType '{0}' is not supported.",
+            VisibilityProperty_NotSupported_Format = "The Property Visibility '{0}' is not supported for the control '{1}.",
+            BorderProperty_NotSupported_Format = "Border property '{0}' with '{1}' value is not supported",
+            StyleExpression_NotSupported_Format = "Expression for the Style property '{0}' is not supported.",
+            CannotApplyStyleProperty_Format = "Cannot apply the Style property '{0}' to the control '{1}'.",
             ExpressionParser_AccessToFieldsAndPageArguments_NotSupported = "Cannot Create expression to process Data Fields and Page Arguments both.",
             ExpressionParser_NotSupportedComponentExpression = "Cannot create expression for '{0}' component.",
             ExpressionParser_NotSupportedAggregate_Format = "Not supported aggregate '{0}' function.",
-            ExpressionParser_FunctionSingleArgument_Format = "'{0}' function should contains single argument.",
+            ExpressionParser_FunctionSingleArgument_Format = "'{0}' function should contain a single argument.",
             ExpressionParser_IifOddArguments_Format = "'Iif' function should contains odd arguments number.",
-            DataSource_ConnectionParameters_Expression_NotSupported = "Expression value is not supported for connection parameters."
+            DataSource_ConnectionParameters_Expression_NotSupported = "Expression value is not supported for connection parameters.",
+            Tablix_CannotConvert_Format = "Cannot convert {0} control.",
+            Tablix_NotSupportedInsideTableCell_Format = "Tablix control '{0}' is not supported inside the table cell"
         ;
     }
 }

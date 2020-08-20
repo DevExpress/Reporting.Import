@@ -467,7 +467,7 @@ namespace DevExpress.XtraReports.Import {
                     case "Label":         //not supported in rich ???
                         break;
                     default:
-                        TraceInfo("RichText Run element '{0}' is not supported.", name);
+                        TraceInfo(string.Format(Messages.RichTextRunElement_NotSupported_Format, name));
                         break;
                 }
             });
@@ -500,7 +500,7 @@ namespace DevExpress.XtraReports.Import {
                             characterProperties.Strikeout = StrikeoutType.Single;
                         break;
                     default:
-                        TraceInfo("RichText Run Style property '{0}' is not supported.", name);
+                        TraceInfo(Messages.RichTextRunStyle_NotSupported_Format, name);
                         break;
                 }
             });
@@ -538,7 +538,7 @@ namespace DevExpress.XtraReports.Import {
                                 case "MarkupType":
                                     break;
                                 default:
-                                    TraceInfo("RichText Run '{0}' element is not supported.", textRunElementName);
+                                    TraceInfo(Messages.RichTextRunElement_NotSupported_Format, textRunElementName);
                                     break;
                             }
                         });
@@ -547,7 +547,7 @@ namespace DevExpress.XtraReports.Import {
                     case "SpaceAfter":
                         break;
                     default:
-                        TraceInfo("RichText Paragraph '{0}' element is not supported.", name);
+                        TraceInfo(Messages.RichTextParagraphElement_NotSupported_Format, name);
                         break;
                 }
             });
@@ -646,7 +646,7 @@ namespace DevExpress.XtraReports.Import {
                         control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.ImageSource)));
                     break;
                 default:
-                    TraceInfo("ImageControl SourceType '{0}' is not supported.", sourceType);
+                    TraceInfo(Messages.ImageSourceType_NotSupported_Format, sourceType);
                     break;
             }
         }
@@ -680,7 +680,7 @@ namespace DevExpress.XtraReports.Import {
                         ProcessStyle(e, control);
                         break;
                     default:
-                        TraceInfo("Element '{0}' for LineElement is not supported.", name);
+                        TraceInfo("Line Element '{0}' for  is not supported.", name);
                         break;
                 }
             });
@@ -827,7 +827,7 @@ namespace DevExpress.XtraReports.Import {
                     case "ToggleItem":                // not supported
                         break;
                     default:
-                        TraceInfo("Visibiblity '{0}' is not supported for the control '{1}.", name, control.Name);
+                        TraceInfo(Messages.VisibilityProperty_NotSupported_Format, name, control.Name);
                         break;
                 }
             });
@@ -902,14 +902,14 @@ namespace DevExpress.XtraReports.Import {
         void ProcessTextAlignment(string horizontalAlignment, string verticalAlignment, XRControl control) {
             var effectiveAlignment = control.GetEffectiveTextAlignment();
             if(IsExpression(horizontalAlignment)) {
-                Tracer.TraceWarning(NativeSR.TraceSource, $"Expression for the Style property 'TextAlign' is not supported.");
+                Tracer.TraceWarning(NativeSR.TraceSource, Messages.TextAlign_Expression_NotSupported);
                 horizontalAlignment = TextAlignmentToTextAlign(effectiveAlignment);
             } else if(string.IsNullOrEmpty(horizontalAlignment) || horizontalAlignment == "General" || horizontalAlignment == "Default") {
                 horizontalAlignment = TextAlignmentToTextAlign(effectiveAlignment);
             }
 
             if(IsExpression(verticalAlignment)) {
-                Tracer.TraceWarning(NativeSR.TraceSource, $"Expression for the Style property 'VerticalAlign' is not supported.");
+                Tracer.TraceWarning(NativeSR.TraceSource, Messages.VerticalAlign_Expression_NotSupported);
                 verticalAlignment = TextAlignmentToVerticalAlign(effectiveAlignment);
             } else if(string.IsNullOrEmpty(verticalAlignment) || verticalAlignment == "Default") {
                 verticalAlignment = TextAlignmentToVerticalAlign(effectiveAlignment);
@@ -917,25 +917,25 @@ namespace DevExpress.XtraReports.Import {
 
             if(horizontalAlignment == "Left") {
                 if(verticalAlignment == "Top")
-                    control.TextAlignment = XtraPrinting.TextAlignment.TopLeft;
+                    control.TextAlignment = TextAlignment.TopLeft;
                 if(verticalAlignment == "Center")
-                    control.TextAlignment = XtraPrinting.TextAlignment.MiddleLeft;
+                    control.TextAlignment = TextAlignment.MiddleLeft;
                 if(verticalAlignment == "Bottom")
-                    control.TextAlignment = XtraPrinting.TextAlignment.BottomLeft;
+                    control.TextAlignment = TextAlignment.BottomLeft;
             } else if(horizontalAlignment == "Center") {
                 if(verticalAlignment == "Top")
-                    control.TextAlignment = XtraPrinting.TextAlignment.TopCenter;
+                    control.TextAlignment = TextAlignment.TopCenter;
                 if(verticalAlignment == "Center")
-                    control.TextAlignment = XtraPrinting.TextAlignment.MiddleCenter;
+                    control.TextAlignment = TextAlignment.MiddleCenter;
                 if(verticalAlignment == "Bottom")
-                    control.TextAlignment = XtraPrinting.TextAlignment.BottomCenter;
+                    control.TextAlignment = TextAlignment.BottomCenter;
             } else if(horizontalAlignment == "Right") {
                 if(verticalAlignment == "Top")
-                    control.TextAlignment = XtraPrinting.TextAlignment.TopRight;
+                    control.TextAlignment = TextAlignment.TopRight;
                 if(verticalAlignment == "Center")
-                    control.TextAlignment = XtraPrinting.TextAlignment.MiddleRight;
+                    control.TextAlignment = TextAlignment.MiddleRight;
                 if(verticalAlignment == "Bottom")
-                    control.TextAlignment = XtraPrinting.TextAlignment.BottomRight;
+                    control.TextAlignment = TextAlignment.BottomRight;
             }
         }
 
@@ -1009,7 +1009,7 @@ namespace DevExpress.XtraReports.Import {
                         ProcessBorderWidth(e.Value, control, expressionParserResult);
                         break;
                     default:
-                        Tracer.TraceWarning(NativeSR.TraceSource, $"Border property '{name}' with '{e.Value}' value is not supported");
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.BorderProperty_NotSupported_Format, name, e.Value));
                         break;
                 }
             });
@@ -1174,7 +1174,7 @@ namespace DevExpress.XtraReports.Import {
         };
         void ProcessWritingMode(XElement writingMode, XRControl control, ExpressionParserResult expressionParserResult) {
             if(expressionParserResult != null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, $"Expression for the Style property '{writingMode.Name.LocalName}' is not supported.");
+                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.StyleExpression_NotSupported_Format, writingMode.Name.LocalName));
             } else {
                 var textAngle = writingModeToTextAngleMap.GetValueOrDefault(writingMode.Value, 0);
                 if(control is XRLabel)
@@ -1182,7 +1182,7 @@ namespace DevExpress.XtraReports.Import {
                 else if(control is XRCrossTabCell)
                     ((XRCrossTabCell)control).Angle = textAngle;
                 else
-                    Tracer.TraceWarning(NativeSR.TraceSource, $"Can't process the Style property '{writingMode.Name.LocalName}'.");
+                    Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.CannotApplyStyleProperty_Format, writingMode.Name.LocalName, control.Name));
             }
         }
         #endregion
@@ -1245,7 +1245,7 @@ namespace DevExpress.XtraReports.Import {
                 case "DataSetReference":
                     return ProcessDynamicListLookUpSettings(valueSourceElement);
                 default:
-                    TraceInfo("Unsupported parameter values source: '{0}'", name);
+                    TraceInfo(Messages.ParameterValueSource_NotSupported_Format, name);
                     return null;
             }
         }
@@ -1268,7 +1268,7 @@ namespace DevExpress.XtraReports.Import {
         }
 
         DynamicListLookUpSettings ProcessDynamicListLookUpSettings(XElement dynamicListElement) {
-            TraceWarning("Dynamic lookups is not supported");
+            TraceWarning(Messages.ParameterDynamicLookups_NotSupported);
             return null;
         }
 

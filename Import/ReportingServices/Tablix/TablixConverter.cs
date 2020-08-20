@@ -27,7 +27,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 else {
                     bool xtabSuccess = TryConvertCrossTab(model, container);
                     if(!xtabSuccess) {
-                        Tracer.TraceWarning(NativeSR.TraceSource, $"Cannot convert {element.Name.LocalName} control.");
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Tablix_CannotConvert_Format, element.Name.LocalName));
                         GenerateStub(model, container);
                         return new ConvertionResult(false, model.Bounds.Height);
                     }
@@ -71,9 +71,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                         break;
                     case "Subreport":
                     case "Tablix":
-                        string warningMessage = $"Control '{name}' is not supported inside the table cell";
+                        string warningMessage = string.Format(Messages.Tablix_NotSupportedInsideTableCell_Format, name);
                         Tracer.TraceWarning(NativeSR.TraceSource, warningMessage + $" '{cell.Name}'.");
-                        cell.Text = warningMessage;
+                        cell.Text = warningMessage + ".";
                         break;
                     case "ColSpan":
                         break;        //handled
@@ -111,7 +111,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         static void GenerateStub(Model model, XRControl container) {
             var stubLabel = new XRLabel {
                 Name = model.Name,
-                Text = "NOT CONVERTED",
+                Text = Messages.NotConvertedControl_Stub,
                 BoundsF = model.Bounds
             };
             container.Controls.Add(stubLabel);

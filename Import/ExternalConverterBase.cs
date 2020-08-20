@@ -1,6 +1,4 @@
-#region DEMO_REMOVE
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
@@ -170,6 +168,8 @@ namespace DevExpress.XtraReports.Import {
             return result;
         }
     }
+    public enum UnrecognizedFunctionBehavior {
+        InsertWarning,
+        Ignore
+    }
 }
-
-#endregion

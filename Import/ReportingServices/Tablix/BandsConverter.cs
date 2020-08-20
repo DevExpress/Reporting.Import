@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using DevExpress.Data.Browsing;
-using DevExpress.Data.Filtering;
 using DevExpress.XtraReports.UI;
 
 namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
@@ -21,7 +20,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         }
         public bool ConvertDetailReport(XRControl container) {
             if(!(container is Band))
-                throw new NotSupportedException($"Cannot convert Matrix to Detail band inside the '{container.Name}' {container.GetType().Name} container, Band only supported.");
+                throw new NotSupportedException(string.Format(Messages.NestedMatrix_NotSupported_Format, container.Name, container.GetType().Name));
             return ConvertDetailReportCore(container);
         }
 

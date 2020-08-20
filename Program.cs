@@ -16,7 +16,8 @@ namespace DevExpress.XtraReports.Import {
                 }
                 string path = Path.GetFullPath(inputFile);
                 if(!File.Exists(path)) {
-                    Console.WriteLine("File \"" + path + "\" doesn't exist.");
+                    Console.WriteLine($"File '{path}' doesn't exist." + Environment.NewLine);
+                    WriteInfo();
                     return;
                 }
                 ConfigureTracer();
@@ -25,7 +26,8 @@ namespace DevExpress.XtraReports.Import {
                 ConversionResult conversionResult = converter.Convert(path);
                 conversionResult.TargetReport.SaveLayoutToXml(outputFile);
             } catch(Exception ex) {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine(ex.Message + Environment.NewLine);
+                WriteInfo();
             }
         }
         static void WriteInfo() {

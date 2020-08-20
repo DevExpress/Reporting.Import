@@ -36,7 +36,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices {
                     return new UnitDpiInfo(name, "pt", GraphicsDpi.Point, ReportUnit.HundredthsOfAnInch, GraphicsDpi.HundredthsOfAnInch);
                 else if(name == "Pica")
                     return new UnitDpiInfo(name, "pc", PicaDpi, ReportUnit.HundredthsOfAnInch, GraphicsDpi.HundredthsOfAnInch);
-                throw new NotSupportedException($"'{name}' unit is not supported.");
+                throw new NotSupportedException(string.Format(Messages.ReportMeasureUnit_NotSupported_Format, name));
             }
         }
 
@@ -54,7 +54,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices {
         public UnitConverter(string reportUnit) {
             unitDpiInfos.TryGetValue(reportUnit, out targetUnitInfo);
             if(targetUnitInfo == null)
-                throw new NotSupportedException($"'{reportUnit}' unit is not supported.");
+                throw new NotSupportedException(string.Format(Messages.ReportMeasureUnit_NotSupported_Format, reportUnit));
         }
 
         public float ToFloat(string value) {

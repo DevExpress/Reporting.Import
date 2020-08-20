@@ -1470,11 +1470,6 @@ namespace DevExpress.XtraReports.Import {
             return false;
         }
     }
-
-    public enum UnrecognizedFunctionBehavior {
-        InsertWarning,
-        Ignore
-    }
 }
 #endif
 
