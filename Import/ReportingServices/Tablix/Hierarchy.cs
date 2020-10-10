@@ -13,10 +13,15 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         public Hierarchy(IList<TablixMember> members) {
             Members = new ReadOnlyCollection<TablixMember>(members);
         }
-        public bool AnyGroup() {
+        public bool HasAnyGroup() {
             return Members
-                .SelectMany(x => x.Flatten())
+                .SelectMany(x => x.Flatten(false))
                 .Any(x => x.HasGroupRecursive());
+        }
+        public bool HasSingleGroup() {
+            return Members
+                .SelectMany(x => x.Flatten(false))
+                .Count(x => x.HasGroup()) == 1;
         }
     }
 }

@@ -204,7 +204,6 @@
     <Compile Include="Import\CrystalFormula\FormulaParserException.cs" />
     <Compile Include="Import\CrystalFormula\Messages.cs" />
     <Compile Include="Import\DataSetBasedExternalConverterBase.cs" />
-    <Compile Include="Import\DataSetToSqlDataSourceConverter.cs" />
     <Compile Include="Import\ExternalConverterBase.cs" />
     <Compile Include="Import\Interop.cs" />
     <Compile Include="Import\ReportingServicesConverter.cs" />
@@ -214,7 +213,6 @@
     <Compile Include="Import\ReportingServices\Expressions\ExpressionLexer.cs" />
     <Compile Include="Import\ReportingServices\Expressions\ExpressionParser.cs" />
     <Compile Include="Import\ReportingServices\Messages.cs" />
-    <Compile Include="Import\ReportingServices\Tablix\BandsConverter.cs" />
     <Compile Include="Import\ReportingServices\Tablix\ExpressionMember.cs" />
     <Compile Include="Import\ReportingServices\Tablix\Filter.cs" />
     <Compile Include="Import\ReportingServices\Tablix\HeaderModel.cs" />
@@ -224,6 +222,12 @@
     <Compile Include="Import\ReportingServices\Tablix\SortExpressionMember.cs" />
     <Compile Include="Import\ReportingServices\Tablix\TablixConverter.cs" />
     <Compile Include="Import\ReportingServices\Tablix\TablixMember.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixMemberConductor.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixToBandsConverter.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixToBandsConverterBase.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixToCrossTabConverter.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixToStaticTableConverter.cs" />
+    <Compile Include="Import\ReportingServices\Tablix\TablixToVBandsConverter.cs" />
     <Compile Include="Import\ReportingServices\UnitConverter.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ResFinder.cs" />
@@ -237,7 +241,6 @@
       <Generator>Yacc</Generator>
     </None>
     <None Include="Import\ReportingServices\Expressions\ExpressionGrammar.y" />
-    <None Include="Import\ReportingServices\Expressions\grammar.cmd" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

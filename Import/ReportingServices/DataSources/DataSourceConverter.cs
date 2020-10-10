@@ -10,13 +10,13 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using DevExpress.Data.Browsing;
 using DevExpress.DataAccess.ConnectionParameters;
-using DevExpress.DataAccess.Native.Sql;
 using DevExpress.DataAccess.Native.Sql.ConnectionProviders;
 using DevExpress.DataAccess.Sql;
 using DevExpress.Xpo.DB;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Native;
 using DevExpress.XtraReports.Import.ReportingServices.Expressions;
+using DevExpress.XtraReports.Parameters;
 
 namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
     interface IDataSourceConverter {
@@ -33,7 +33,6 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
         }
 
         readonly XNamespace rdns = XNamespace.Get("http://schemas.microsoft.com/SQLServer/reporting/reportdesigner");
-        readonly static string[] msSqlProviders = { "SQLNCLI", "SQLNCLI10", "SQLNCLI11" };
         readonly IReportingServicesConverter converter;
         readonly ITypeResolutionService typeResolver;
         readonly IDesignerHost designerHost;
@@ -87,11 +86,14 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                         if(dataSourceReference == null)
                             ProcessConnectionProperties(e, sqlDataSource);
                         break;
-                    case "SecurityType":  //handled
+                    case "SecurityType":         //handled
+                    case "IntegratedSecurity":   //handled
                     case "DataSourceID":
+                    case "Transaction":
                         break;
                     default:
-                        throw new NotSupportedException($"DataSource element '{name}' not supported.");
+                        Tracer.TraceInformation(NativeSR.TraceSource, string.Format(Messages.DataSource_Element_NotSupported_Format, name));
+                        break;
                 }
             });
         }
@@ -152,7 +154,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             var dataSetName = sharedDataSet.Element(sharedDataSet.GetDefaultNamespace() + "SharedDataSetReference").Value;
             var document = GetSharedResourceDocument(converter.ReportFolder, dataSetName, "rsd");
             if(document == null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, $"Unable to find the '{dataSetName}' shared data set.");
+                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.DataSource_MissingSharedDataSet_Format, dataSetName));
                 return;
             }
             var ns = document.Root.GetDefaultNamespace();
@@ -177,11 +179,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             var columns = fields.Elements(ns + "Field")
                 .Select(field => {
                     var name = field.Attribute("Name").Value;
-                    var fieldName = field.Element(ns + "DataField");
                     var typeName = field.Element(rdns + "TypeName")?.Value;
                     var type = string.IsNullOrEmpty(typeName) ? typeof(object) : Type.GetType(typeName);
                     if(type == null) {
-                        Tracer.TraceWarning(NativeSR.TraceSource, $"Can't resolve the '{typeName}' column type.");
+                        Tracer.TraceInformation(NativeSR.TraceSource, string.Format(Messages.DataSource_CannotResolveColumnType_Format, typeName));
                         type = typeof(object);
                     }
                     return new { Name = name, Type = type };
@@ -194,7 +195,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
         void ProcessDataSourceReference(XElement reference, SqlDataSource dataSource) {
             var document = GetSharedResourceDocument(converter.ReportFolder, reference.Value, "rds");
             if(document == null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, $"Unable to find the '{reference.Value}' data source reference.");
+                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.DataSource_CannotResolveDataSourceReference_Format, reference.Value));
             } else {
                 var ns = document.Root.GetDefaultNamespace();
                 ProcessConnectionProperties(document.Root.Element(ns + "ConnectionProperties"), dataSource);
@@ -207,13 +208,15 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             var connectionString = connection.Element(ns + "ConnectString").Value;
             var integratedSecurity = connection.Element(ns + "IntegratedSecurity")?.Value == "true";
             if(ReportingServicesConverter.IsExpression(connectionString))
-                Tracer.TraceWarning(NativeSR.TraceSource, Messages.DataSource_ConnectionParameters_Expression_NotSupported);
+                Tracer.TraceInformation(NativeSR.TraceSource, Messages.DataSource_ConnectionParameters_Expression_NotSupported);
             else
                 dataSource.ConnectionParameters = CreateConnectionParameters(dataProvider, connectionString, integratedSecurity, is2016OrHigher: IsVersionHigherThan2016(ns.NamespaceName));
         }
 
         static DataConnectionParametersBase CreateConnectionParameters(string dataProvider, string connectionString, bool integratedSecurity, bool is2016OrHigher) {
-            string xpoProvider = null;
+            Action<string> patchConnectionString = (xpoProvider) => {
+                connectionString = $"XpoProvider={xpoProvider};{connectionString}";
+            };
             switch(dataProvider) {
                 case "System.Data.DataSet":    //handled
                     return null;
@@ -221,44 +224,28 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                     return new XmlFileConnectionParameters(connectionString);
                 case "SQL":
                 case "SQLAZURE":
-                    xpoProvider = MSSqlConnectionProvider.XpoProviderTypeString;
+                    patchConnectionString(MSSqlConnectionProvider.XpoProviderTypeString);
                     if(integratedSecurity)
                         connectionString += ";integrated security=SSPI";
                     break;
+                case "SQLCe":
+                    patchConnectionString(MSSqlCEConnectionProvider.XpoProviderTypeString);
+                    break;
                 case "ORACLE":
-                    xpoProvider = is2016OrHigher ? ODPManagedConnectionProvider.XpoProviderTypeString : OracleConnectionProvider.XpoProviderTypeString;
+                    var provider = is2016OrHigher ? ODPManagedConnectionProvider.XpoProviderTypeString : OracleConnectionProvider.XpoProviderTypeString;
+                    patchConnectionString(provider);
                     break;
                 case "TERADATA":
-                    xpoProvider = DataAccessTeradataConnectionProvider.XpoProviderTypeString;
+                    patchConnectionString(DataAccessTeradataConnectionProvider.XpoProviderTypeString);
                     break;
                 case "OLEDB":
-                    var builder = new OleDbConnectionStringBuilder(connectionString);
-                    object oleDBProvider;
-                    if(builder.TryGetValue("Provider", out oleDBProvider)) {
-                        const string StrJetOledb4 = "Microsoft.Jet.OLEDB.4.0";
-                        const string StrAceOledb12 = "Microsoft.ACE.OLEDB.12.0";
-                        if(oleDBProvider.Equals(StrJetOledb4) || oleDBProvider.Equals(StrAceOledb12))
-                            xpoProvider = AccessConnectionProvider.XpoProviderTypeString;
-                        else if(msSqlProviders.Contains(oleDBProvider))
-                            xpoProvider = MSSqlConnectionProvider.XpoProviderTypeString;
-                        else if(oleDBProvider.Equals("MSDAORA"))
-                            xpoProvider = is2016OrHigher ? ODPManagedConnectionProvider.XpoProviderTypeString : OracleConnectionProvider.XpoProviderTypeString;
-                        else
-                            Tracer.TraceWarning(NativeSR.TraceSource, $"The '{oleDBProvider}' Ole DB provider is not supported.");
-                    } else {
-                        Tracer.TraceWarning(NativeSR.TraceSource, $"Unable to determine Ole DB provider type by connection string.");
-                    }
+                    connectionString = DataSetToSqlDataSourceConverter.PatchOleDBConnectionString(connectionString, is2016OrHigher);
                     break;
                 default:
-                    Tracer.TraceWarning(NativeSR.TraceSource, $"The '{dataProvider}' data provider is not supported");
+                    Tracer.TraceInformation(NativeSR.TraceSource, string.Format(Messages.DataSource_DataProviderNotSupported_Format, dataProvider));
                     break;
             }
-            if(string.IsNullOrEmpty(xpoProvider))
-                return new CustomStringConnectionParameters(connectionString);
-
-            connectionString = $"XpoProvider={xpoProvider};{connectionString}";
-            var parameters = DataAccessConnectionHelper.ParseConnectionParameters(connectionString);
-            return parameters;
+            return DataSetToSqlDataSourceConverter.ParseConnectionParameters(connectionString);
         }
         #endregion
 
@@ -303,20 +290,22 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
 
         void ProcessDataSetParameter(XElement dataSetParameter, DataSetConversionState state) {
             var parameter = GetOrAddQueryParameter(dataSetParameter, state);
+            var typeElement = dataSetParameter.Element(rdns + "DbType");
+            parameter.Type = typeElement != null ? Type.GetType(typeElement.Value) : typeof(string);
             ReportingServicesConverter.IterateElements(dataSetParameter, (e, name) => {
                 switch(name) {
-                    case "DbType":
-                        parameter.Type = Type.GetType(e.Value);
-                        break;
-                    case "ReadOnly":                  // not supported 
+                    case "DbType":                    // handled
+                    case "ReadOnly":                  // not supported
                     case "Nullable":                  // not supported
                     case "OmitFromQuery":             // not supported
                     case "UserDefined":               // not supported
                         break;
-                    case "DefaultValue":               // todo
+                    case "DefaultValue":
+                        parameter.Value = ParameterHelper.ConvertFrom(e.Value, parameter.Type, e.Value);
                         break;
                     default:
-                        throw new NotSupportedException();
+                        Tracer.TraceInformation(NativeSR.TraceSource, string.Format(Messages.DataSource_DataSetParameterPropertyNotSupported_Format, e.Name));
+                        break;
                 }
             });
         }
@@ -352,7 +341,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             SqlDataSource dataSource;
             if(!dataSources.TryGetValue(name, out dataSource)) {
                 dataSource = new SqlDataSource() { ConnectionName = "Connection" };
-                converter.SetControlName(dataSource, name);
+                converter.SetComponentName(dataSource, name);
                 dataSources.Add(dataSource.Name, dataSource);
             }
             return dataSource;

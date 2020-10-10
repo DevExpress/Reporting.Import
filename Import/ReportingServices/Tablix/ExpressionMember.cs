@@ -28,7 +28,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         public ExpressionMember(CriteriaOperator expression) {
             Expression = expression;
         }
-        public string GetMemberOrGenerateCalculatedField(XtraReportBase report, string groupName, IReportingServicesConverter converter) {
+        public string GetMemberOrGenerateCalculatedField(XtraReportBase report, string groupName, IReportingServicesConverter rootConverter) {
             var operandProperty = Expression as OperandProperty;
             if(!ReferenceEquals(operandProperty, null))
                 return operandProperty.PropertyName;
@@ -36,8 +36,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             var calculatedField = new CalculatedField(dataContainer.GetEffectiveDataSource(), dataContainer.GetEffectiveDataMember()) {
                 Expression = Expression?.ToString()
             };
+            rootConverter.SetComponentName(calculatedField, groupName);
             report.RootReport.CalculatedFields.Add(calculatedField);
-            converter.SetControlName(calculatedField, groupName);
             return calculatedField.Name;
         }
         public virtual bool IsEmpty {

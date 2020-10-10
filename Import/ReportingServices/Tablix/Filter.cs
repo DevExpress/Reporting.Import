@@ -24,16 +24,16 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 .ToList();
             return CombineFilters(filters);
         }
-        static CriteriaOperator CombineFilters(IList<CriteriaOperator> filters) {
+        internal static CriteriaOperator CombineFilters(IList<CriteriaOperator> filters) {
             if(filters.Count == 0)
-                return string.Empty;
-            if(filters.Count == 1)
-                return filters[0];
+                return null;
             var compactedFilters = new HashSet<CriteriaOperator>();
             foreach(CriteriaOperator filter in filters) {
                 if(!ReferenceEquals(filter, null))
                     compactedFilters.Add(filter);
             }
+            if(compactedFilters.Count == 0)
+                return null;
             if(compactedFilters.Count == 1)
                 return compactedFilters.First();
             return new GroupOperator(GroupOperatorType.And, compactedFilters);
@@ -68,7 +68,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 case "In":
                     return new Tuple<SsrsOperatorKind, BinaryOperatorType?>(SsrsOperatorKind.In, null);
                 default:
-                    Tracer.TraceWarning(NativeSR.TraceSource, $"Filter operator '{@operator}' is not suported.");
+                    Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Expression_FilterOperatorNotSupported_Format, @operator));
                     return new Tuple<SsrsOperatorKind, BinaryOperatorType?>(SsrsOperatorKind.Compare, BinaryOperatorType.Equal);
             }
         }

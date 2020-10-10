@@ -6,62 +6,81 @@ using DevExpress.XtraPrinting.Native;
 using DevExpress.XtraReports.UI;
 
 namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
-    partial class TablixConverter : ITablixConverter {
+    partial class TablixConverter : ITableConverter {
         readonly IReportingServicesConverter rootConverter;
         public TablixConverter(IReportingServicesConverter rootConverter) {
             this.rootConverter = rootConverter;
         }
-        public ConvertionResult Convert(XElement element, XRControl container, float yBodyOffset, IReportingServicesConverter converter) {
-            var model = Model.Parse(element, rootConverter.UnitConverter, converter);
-            bool anyRowGroups = model.RowHierarchy.AnyGroup();
-            bool anyColumnGroups = model.ColumnHierarchy.AnyGroup();
-            bool shouldStartNewBand = true;
+        public ConvertionResult Convert(XElement element, XRControl container, float yBodyOffset, IReportingServicesConverter rootConverter) {
+            var model = Model.Parse(element, this.rootConverter.UnitConverter, rootConverter);
+            bool hasAnyRowGroups = model.RowHierarchy.HasAnyGroup();
+            bool hasAnyColumnGroups = model.ColumnHierarchy.HasAnyGroup();
+            bool hasSingleColumnGroup = model.ColumnHierarchy.HasSingleGroup();
+            bool shouldStartNewBand;
             try {
-                if(!(anyRowGroups || anyColumnGroups)) {
-                    ConvertStaticTable(model, container, yBodyOffset);
-                    return new ConvertionResult(false, model.Bounds.Height);
-                } else if(anyRowGroups)
-                    shouldStartNewBand = new BandsConverter(rootConverter, this, model).ConvertDetailReport(container);
-                else if(anyColumnGroups)
-                    new BandsConverter(rootConverter, this, model).ConvertVBands(container);
+                if(!(hasAnyRowGroups || hasAnyColumnGroups)) {
+                    new TablixToStaticTableConverter(this.rootConverter, this).ConvertStaticTable(model, container, yBodyOffset);
+                    shouldStartNewBand = false;
+                } else if(hasAnyRowGroups && !hasAnyColumnGroups)
+                    shouldStartNewBand = new TablixToBandsConverter(rootConverter, this, model).Convert(container);
+                else if(!hasAnyRowGroups && hasSingleColumnGroup)
+                    shouldStartNewBand = new TablixToVBandsConverter(rootConverter, this, model).Convert(container);
                 else {
-                    bool xtabSuccess = TryConvertCrossTab(model, container);
-                    if(!xtabSuccess) {
-                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Tablix_CannotConvert_Format, element.Name.LocalName));
-                        GenerateStub(model, container);
-                        return new ConvertionResult(false, model.Bounds.Height);
-                    }
+                    new TablixToCrossTabConverter(rootConverter, this, model, container.Report).Convert(container, yBodyOffset);
+                    shouldStartNewBand = false;
                 }
             } catch(Exception e) {
                 Tracer.TraceWarning(NativeSR.TraceSource, e);
                 GenerateStub(model, container);
-                return new ConvertionResult(false, model.Bounds.Height);
+                shouldStartNewBand = false;
             }
             return new ConvertionResult(shouldStartNewBand, model.Bounds.Height);
         }
-        void ConvertStaticTable(Model model, XRControl container, float yBodyOffset) {
-            var table = new XRTable {
-                BoundsF = model.Bounds,
-                Dpi = container.Dpi
-            };
-            rootConverter.SetControlName(table, model.Element);
-            table.BeginInit();
-            ReportingServicesConverter.IterateElements(
-                model.Element,
-                (x, _) => rootConverter.ProcessCommonControlProperties(x, table, yBodyOffset, false));
-
-            for(int i = 0; i < model.Rows.Count; i++) {
-                RowModel modelRow = model.Rows[i];
-                XRTableRow xrRow = new XRTableRow();
-                table.Rows.Add(xrRow);
-                ConvertTableRow(modelRow, model.Columns, xrRow);
+        public void ConvertTableColumns(IEnumerable<RowModel> rowModels, int rowModelCellIndexOffset, IList<float> columns, XRTable xrTable, HeaderModel header = null) {
+            if(header != null) {
+                var xrRowHeader = new XRTableRow();
+                xrRowHeader.Dpi = xrTable.Dpi;
+                xrRowHeader.HeightF = header.Size;
+                xrTable.Rows.Add(xrRowHeader);
+                var xrCell = new XRTableCell();
+                xrCell.Dpi = xrRowHeader.Dpi;
+                xrRowHeader.Cells.Add(xrCell);
+                ProcessTablixCell(header.Cell, xrCell, columns[0]);
             }
-
-            table.EndInit();
-            container.Controls.Add(table);
+            foreach(RowModel rowModel in rowModels)
+                ConvertTableColumn(rowModelCellIndexOffset, columns, xrTable, rowModel);
         }
-        void ProcessTablixCell(XElement element, XRTableCell cell, float columnWidth) {
-            cell.WidthF = columnWidth;
+        void ConvertTableColumn(int rowModelCellIndexOffset, IList<float> columns, XRTable xrTable, RowModel rowModel) {
+            var xrRow = new XRTableRow();
+            xrRow.Dpi = xrTable.Dpi;
+            xrRow.HeightF = rowModel.Height;
+            xrTable.Rows.Add(xrRow);
+            for(int i = 0; i < columns.Count; i++) {
+                XElement xCell = rowModel.Cells[rowModelCellIndexOffset + i];
+                float columnWidth = columns[i];
+                XRTableCell xrCell;
+                if(xCell == null) {
+                    if(xrRow.Cells.Count == 0) {
+                        xrCell = new XRTableCell {
+                            Dpi = xrRow.Dpi,
+                            WidthF = columnWidth
+                        };
+                        xrRow.Cells.Add(xrCell);
+                    } else {
+                        xrCell = xrRow.Cells[xrRow.Cells.Count - 1];
+                        xrCell.WidthF += columnWidth;
+                    }
+                    continue;
+                }
+                xrCell = new XRTableCell();
+                xrCell.Dpi = xrRow.Dpi;
+                xrRow.Cells.Add(xrCell);
+                ProcessTablixCell(xCell, xrCell, columnWidth);
+            }
+        }
+        public void ProcessTablixCell(XElement element, XRTableCell cell, float? columnWidth = null) {
+            if(columnWidth.HasValue)
+                cell.WidthF = columnWidth.Value;
             ReportingServicesConverter.IterateElements(element, (e, name) => {
                 switch(name) {
                     case "RowSpan":
@@ -84,12 +103,27 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 }
             });
         }
+        public void ConvertTableRows(IList<RowModel> rowModels, IList<float> columns, XRTable xrTable, bool useExistTableRow, HeaderModel header = null) {
+            for(int i = 0; i < rowModels.Count; i++) {
+                XRTableRow xrTableRow;
+                if(useExistTableRow && xrTable.Rows.Count > 0) {
+                    int rowIndex = Math.Min(i, xrTable.Rows.Count - 1);
+                    xrTableRow = xrTable.Rows[rowIndex];
+                } else {
+                    xrTableRow = new XRTableRow();
+                    xrTableRow.Dpi = xrTable.Dpi;
+                    xrTable.Rows.Add(xrTableRow);
+                }
+                ConvertTableRow(rowModels[i], columns, xrTableRow, header);
+            }
+        }
         public void ConvertTableRow(RowModel rowModel, IList<float> columns, XRTableRow xrRow, HeaderModel header = null) {
             xrRow.HeightF = rowModel.Height;
             if(header != null) {
                 var xrCell = new XRTableCell();
+                xrCell.Dpi = xrRow.Dpi;
                 xrRow.Cells.Add(xrCell);
-                ProcessTablixCell(header.Cell, xrCell, header.Size);
+                ProcessTablixCell(header.Cell, xrCell, columnWidth: header.Size);
             }
             for(int i = 0; i < columns.Count; i++) {
                 XElement xCell = rowModel.Cells[i];
@@ -101,12 +135,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                     continue;
                 }
                 xrCell = new XRTableCell();
+                xrCell.Dpi = xrRow.Dpi;
                 xrRow.Cells.Add(xrCell);
-                ProcessTablixCell(xCell, xrCell, columnWidth);
+                ProcessTablixCell(xCell, xrCell, columnWidth: columnWidth);
             }
-        }
-        static bool TryConvertCrossTab(Model model, XRControl container) {
-            throw new NotImplementedException();
         }
         static void GenerateStub(Model model, XRControl container) {
             var stubLabel = new XRLabel {
@@ -117,8 +149,11 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             container.Controls.Add(stubLabel);
         }
     }
-    interface ITablixConverter {
+    interface ITableConverter {
+        void ConvertTableRows(IList<RowModel> rowModels, IList<float> columns, XRTable xrTable, bool useExistTableRow, HeaderModel header = null);
         void ConvertTableRow(RowModel rowModel, IList<float> columns, XRTableRow xrRow, HeaderModel header = null);
+        void ConvertTableColumns(IEnumerable<RowModel> rowModels, int startModelColumnIndex, IList<float> columns, XRTable xrTable, HeaderModel header = null);
+        void ProcessTablixCell(XElement element, XRTableCell cell, float? columnWidth = null);
     }
     struct ConvertionResult {
         public bool ShouldStartNewBand { get; }

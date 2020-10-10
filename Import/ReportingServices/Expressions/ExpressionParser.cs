@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Linq;
 using DevExpress.Data.Filtering;
 using DevExpress.DataAccess;
 using DevExpress.XtraPrinting;
@@ -14,21 +14,23 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         public bool AccessToFields { get; }
         public bool AccessToPageArguments { get; }
         public bool HasSummary { get; }
+        public IList<string> UsedScopes { get; }
         public string Expression {
             get { return Criteria?.ToString() ?? string.Empty; }
         }
-        public ExpressionParserResult(CriteriaOperator criteria, bool accessToFields = false, bool accessToPageArguments = false, bool hasSummary = false) {
+        public ExpressionParserResult(CriteriaOperator criteria, bool accessToFields = false, bool accessToPageArguments = false, bool hasSummary = false, IList<string> usedScopes = null) {
             Criteria = criteria;
             AccessToFields = accessToFields;
             AccessToPageArguments = accessToPageArguments;
             HasSummary = hasSummary;
+            UsedScopes = usedScopes ?? new string[0];
         }
         public ExpressionBinding ToExpressionBinding(string propertyName, Func<CriteriaOperator, CriteriaOperator> processExpression = null) {
             string eventName = AccessToPageArguments
                 ? XRControl.EventNames.PrintOnPage
                 : XRControl.EventNames.BeforePrint;
             if(AccessToFields && AccessToPageArguments) {
-                ReportingServicesConverter.TraceInfo(Messages.ExpressionParser_AccessToFieldsAndPageArguments_NotSupported);
+                Tracer.TraceInformation(NativeSR.TraceSource, Messages.ExpressionParser_AccessToFieldsAndPageArguments_NotSupported);
                 eventName = XRControl.EventNames.BeforePrint;
             }
             string actualExpression = processExpression?.Invoke(Criteria).ToString() ?? Expression;
@@ -42,6 +44,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         }
     }
     public partial class ExpressionParser {
+        const string exceptionDataMark = "ExpressionParserLoggerMark";
         public static ExpressionParserResult ParseSafe(string expression, string componentName, bool useReportSummary, bool allowUnrecognizedFunctions = false) {
             ExpressionParserResult result;
             try {
@@ -62,19 +65,30 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 result,
                 parser.accessToFields,
                 parser.accessToPageArguments,
-                parser.summaryFunctionsProvider.IsCalled);
+                parser.summaryFunctionsProvider.IsCalled,
+                parser.summaryFunctionsProvider.UsedScopes.ToList());
         }
         FunctionOperator CreateStub(string value) {
             return CreateStub(value, componentName);
         }
         static FunctionOperator CreateStub(string value, string componentName, Exception exception = null) {
-            string message = string.Format(Messages.ExpressionParser_NotSupportedComponentExpression, componentName);
-            var messageInstance = exception != null
-                ? (object)new InvalidOperationException(message, exception)
-                : message;
+            var formattableMessage = new FormattableString(Messages.ExpressionParser_NotSupportedComponentExpression, componentName);
+            object messageInstance = CreateMessageInstance(formattableMessage, exception);
             Tracer.TraceInformation(NativeSR.TraceSource, messageInstance);
             const string NotSupportedStub = "#NOT_SUPPORTED#";
             return new FunctionOperator(FunctionOperatorType.Iif, new ConstantValue(true), new ConstantValue(NotSupportedStub), new ConstantValue(value));
+        }
+        static object CreateMessageInstance(FormattableString message, Exception exception = null) {
+            if(exception == null)
+                return message;
+            if(exception is InvalidOperationException && exception.Data.Contains(exceptionDataMark)) {
+                var exceptionMessage = exception.Data[exceptionDataMark] as FormattableString;
+                if(exceptionMessage != null)
+                    return message.Append(exceptionMessage);
+            }
+            var exceptionWrapper = new InvalidOperationException(message.ToString(), exception);
+            exceptionWrapper.Data[exceptionDataMark] = message;
+            return exceptionWrapper;
         }
 
         readonly string componentName;
@@ -89,8 +103,18 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 : new GenericSummaryFunctionsProvider();
             this.allowUnrecognizedFunctions = allowUnrecognizedFunctions;
         }
-        static void yyerror(string message) {
-            throw new InvalidOperationException(message);
+        static void yyerror(string message, FormattableString exceptionData = null) {
+            var exception = new InvalidOperationException(message);
+            if(exceptionData != null)
+                exception.Data[exceptionDataMark] = exceptionData;
+            throw exception;
+        }
+        static void Fail(FormattableString formattableString) {
+            yyerror(formattableString.ToString(), formattableString);
+        }
+        static void Assert(bool condition, FormattableString formattableString) {
+            if(!condition)
+                Fail(formattableString);
         }
         static void Assert(bool condition, string message = "syntax error") {
             if(!condition)
@@ -108,38 +132,49 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
             }
             var functionNameOperand = (OperandProperty)method;
             string functionName = functionNameOperand.PropertyName;
-            switch(functionName.ToLower()) {
+            switch(functionName.ToLowerInvariant()) {
                 case "iif":
                     Assert(parameters.Count % 2 == 1 && parameters.Count >= 3, Messages.ExpressionParser_IifOddArguments_Format);
                     return new FunctionOperator(FunctionOperatorType.Iif, parameters);
                 case "sum":
-                    Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "Sum"));
-                    return summaryFunctionsProvider.Create(parameters[0], Aggregate.Sum);
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Sum"));
+                    return summaryFunctionsProvider.Create(parameters, Aggregate.Sum);
                 case "count":
-                    Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "Count"));
-                    return summaryFunctionsProvider.Create(parameters[0], Aggregate.Count);
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Count"));
+                    return summaryFunctionsProvider.Create(parameters, Aggregate.Count);
                 case "avg":
-                    Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "Avg"));
-                    return summaryFunctionsProvider.Create(parameters[0], Aggregate.Avg);
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Avg"));
+                    return summaryFunctionsProvider.Create(parameters, Aggregate.Avg);
                 case "max":
-                    Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "Max"));
-                    return summaryFunctionsProvider.Create(parameters[0], Aggregate.Max);
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Max"));
+                    return summaryFunctionsProvider.Create(parameters, Aggregate.Max);
                 case "min":
-                    Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "Min"));
-                    return summaryFunctionsProvider.Create(parameters[0], Aggregate.Min);
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Min"));
+                    return summaryFunctionsProvider.Create(parameters, Aggregate.Min);
                 case "first":
-                    //Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "First"));
+                    summaryFunctionsProvider.AddScope(parameters);
                     return parameters[0];
                 case "formatcurrency":
-                    Assert(parameters.Count == 1, string.Format(Messages.ExpressionParser_FunctionSingleArgument_Format, "FormatCurrency"));
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "FormatCurrency"));
                     return new FunctionOperator("FormatString", new ConstantValue("{0:C}"), parameters[0]);
                 case "countrows":
-                    Assert(parameters.Count == 0);
+                    Assert(parameters.Count == 0, "CountRows");
                     return new OperandProperty("DataSource.RowCount");
+                case "rownumber":
+                    return new OperandProperty("DataSource.CurrentRowIndex");
+                case "cdec":
+                    Assert(parameters.Count == 1, "CDec");
+                    return new FunctionOperator(FunctionOperatorType.ToDecimal, parameters[0]);
+                case "cdbl":
+                    Assert(parameters.Count == 1, "CDbl");
+                    return new FunctionOperator(FunctionOperatorType.ToDouble, parameters[0]);
+                case "cint":
+                    Assert(parameters.Count == 1, "CInt");
+                    return new FunctionOperator(FunctionOperatorType.ToInt, parameters[0]);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);
-            return CreateStub(new FunctionOperator(functionName, parameters).ToString(), componentName);
+            return CreateStub(new FunctionOperator(functionName, parameters).ToString());
         }
         static void AppendStubToLastOperator(IList<CriteriaOperator> parameters, FunctionOperator userFunctionOperator) {
             int lastIndex = userFunctionOperator.Operands.Count - 1;
@@ -160,14 +195,15 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "Globals":
                     return ProcessGlobals(right);
             }
-            throw new InvalidOperationException($"Built-in Collection '{left}!' is not supported.");
+            Fail(new FormattableString(Messages.ExpressionParser_BuiltInCollection_NotSupported_Format, left));
+            return null;
         }
         CriteriaOperator GetOperandPropertyDot(CriteriaOperator criteria, string property) {
-            Debug.Assert(criteria is OperandProperty || criteria is OperandParameter, $"{criteria.GetType().Name} is not supported.");
+            Utils.Guard.ArgumentMatch(criteria, nameof(criteria), x => x is FunctionOperator || x is OperandProperty || x is OperandParameter);
             var operandProperty = criteria as OperandProperty;
             switch(operandProperty?.PropertyName) {
                 case "Code":
-                    Tracer.TraceWarning(NativeSR.TraceSource, $"User defined function '{property}' should be implemeted manualy. Please read the documentation https://docs.devexpress.com/XtraReports/DevExpress.XtraReports.Expressions.CustomFunctions.Register(DevExpress.Data.Filtering.ICustomFunctionOperator--) .");
+                    Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.ExpressionParser_Code_NotSupported, property));
                     if(allowUnrecognizedFunctions)
                         return new FunctionOperator(property);
                     else
@@ -177,31 +213,43 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
             }
             if(property == "Value")
                 return criteria;
-            //todo: "Name":
-            throw new InvalidOperationException($"Property '.{property}' is not supported.");
+            if(property == "ToString")
+                return new FunctionOperator(FunctionOperatorType.ToStr, criteria);
+            Fail(new FormattableString(Messages.ExpressionParser_Field_NotSupported_Format, property));
+            return null;
         }
         CriteriaOperator ProcessGlobals(string right) {
             switch(right) {
                 case "OverallPageNumber":
                 case "PageNumber":
                     accessToPageArguments = true;
-                    return new OperandProperty("Arguments.PageIndex"); // todo: AfterPrint & "Arguments.PageIndex + 1"
+                    return new OperandProperty("Arguments.PageIndex");
                 case "OverallTotalPages":
                 case "TotalPages":
                     accessToPageArguments = true;
-                    return new OperandProperty("Arguments.PageCount"); // todo: AfterPrint
+                    return new OperandProperty("Arguments.PageCount");
                 case "ExecutionTime":
                     return new FunctionOperator(FunctionOperatorType.Now);
-                default:
-                    throw new InvalidOperationException($"'Global!{right}' is not supported.");
             }
+            Fail(new FormattableString(Messages.ExpressionParser_GlobalField_NotSupported_Format, right));
+            return null;
         }
     }
     abstract class SummaryFunctionsProviderBase {
+        public HashSet<string> UsedScopes { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         public bool IsCalled { get; private set; }
-        public CriteriaOperator Create(CriteriaOperator criteria, Aggregate aggregate) {
+        public CriteriaOperator Create(IList<CriteriaOperator> criteria, Aggregate aggregate) {
             IsCalled = true;
-            return CreateCore(criteria, aggregate);
+            AddScope(criteria);
+            return CreateCore(criteria[0], aggregate);
+        }
+        public void AddScope(IList<CriteriaOperator> criteria) {
+            if(criteria.Count > 1) {
+                var constantValue = criteria.Last() as ConstantValue;
+                var stringValue = constantValue?.Value as string;
+                if(!string.IsNullOrEmpty(stringValue))
+                    UsedScopes.Add(stringValue);
+            }
         }
         protected abstract CriteriaOperator CreateCore(CriteriaOperator criteria, Aggregate aggregate);
     }

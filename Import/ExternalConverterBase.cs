@@ -150,6 +150,7 @@ namespace DevExpress.XtraReports.Import {
             Guard.ArgumentNotNull(parentBand, "parentBand");
             T result = (T)CreateXRControl(typeof(T));
             NamingMapper.GenerateAndAssignXRControlName(result, name);
+            result.Dpi = parentBand.Dpi;
             if(configureAction != null) {
                 configureAction(result);
             }

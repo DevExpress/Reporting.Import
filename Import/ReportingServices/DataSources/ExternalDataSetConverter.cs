@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Xml.Linq;
 using DevExpress.DataAccess.ConnectionParameters;
@@ -29,6 +30,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
 
         public void Convert(XElement dataSetInfo, DataSetConversionState state) {
             var dataSetName = dataSetInfo.Element(rdns + "DataSetName").Value;
+            if(string.IsNullOrEmpty(dataSetName))
+                return;
             var dataSetSchemaPath = dataSetInfo.Element(rdns + "SchemaPath")?.Value ?? dataSetName;
             var tableName = dataSetInfo.Element(rdns + "TableName").Value;
             var dataSetType = ResolveDataSetType(dataSetName);
@@ -42,10 +45,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             if(!TryConvertWithConverter(dataSet, state)) {
                 var schemaDocument = dataSourceConverter.GetSharedResourceDocument(dataSetSchemaPath, "xsd");
                 if(schemaDocument != null) {
-                    Tracer.TraceInformation(NativeSR.TraceSource, $"Can't resolve the '{dataSetName}' data set. Trying to parse data set schema.");
+                    Tracer.TraceInformation(NativeSR.TraceSource, new FormattableString(Messages.DataSource_CannotResolveDataSet_Format, dataSetName));
                     ProcessSchema(schemaDocument, state);
                 } else {
-                    Tracer.TraceInformation(NativeSR.TraceSource, $"Can't process the '{dataSetName}' data set");
+                    Tracer.TraceInformation(NativeSR.TraceSource, new FormattableString(Messages.DataSource_CannotProcessDataSet_Format, dataSetName));
                     return;
                 }
             }
@@ -55,7 +58,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
         bool TryConvertWithConverter(DataSet dataSet, DataSetConversionState state) {
             if(dataSet == null)
                 return false;
-            var sqlDataSourceConverter = new DataSetToSqlDataSourceConverter(dataSet, typeResolver) { UseManagedOracleDataProvider = dataSourceConverter.UseManagedOracleDataProvider };
+            var sqlDataSourceConverter = new DataSetToSqlDataSourceConverter(dataSet) { UseManagedOracleDataProvider = dataSourceConverter.UseManagedOracleDataProvider };
             if(!sqlDataSourceConverter.CanConvert())
                 return false;
             var result = sqlDataSourceConverter.Convert();
@@ -65,7 +68,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
         }
 
         Type ResolveDataSetType(string typeName) {
-            Func<string, Type> resolveType = name => DataSetToSqlDataSourceConverter.ResolveType(name, null, typeof(DataSet).IsAssignableFrom);
+            Func<string, Type> resolveType = name => ResolveType(name, typeof(DataSet).IsAssignableFrom);
             Type type = resolveType(typeName);
             if(type == null && currentProjectRootNamespace != null) {
                 string rootNamespaceTypeName = $"{currentProjectRootNamespace}.{typeName}";
@@ -115,7 +118,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                     var source = mapping.Attribute("SourceColumn").Value;
                     var result = mapping.Attribute("DataSetColumn").Value;
                     if(source != result)
-                        Tracer.TraceWarning(NativeSR.TraceSource, $"Can't process data set mapping: '{source}' -> '{result}'");
+                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.DataSource_MissingMapping_Format, source, result));
                 }
             }
             var dataSet = new DataSet();
@@ -126,9 +129,27 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             DataSetToSqlDataSourceConverter.ConvertSchema(dataSet, state.DataSource);
         }
 
+        Type ResolveType(string typeName, Predicate<Type> condition = null) {
+            Type type = null;
+            if(typeResolver != null) {
+                type = typeResolver.GetType(typeName, false);
+            }
+            if(type == null) {
+                condition = condition ?? (t => true);
+                foreach(Assembly assembly in AppDomain.CurrentDomain.GetAssemblies()) {
+                    if(type != null)
+                        break;
+                    Type foundedType = assembly.GetType(typeName, false);
+                    if(foundedType != null && condition(foundedType))
+                        type = foundedType;
+                }
+            }
+            return type;
+        }
+
         static void ProcessConnection(XElement connectionElement, DataSetConversionState state) {
             if(connectionElement == null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, "Can't process connection of the external data set.");
+                Tracer.TraceWarning(NativeSR.TraceSource, Messages.DataSource_ExternalConnection_NotSupported);
             }
             var parameterPrefix = connectionElement?.Attribute("ParameterPrefix").Value ?? "@";
             if(connectionElement.Attribute("IsAppSettingsProperty").Value == "true") {

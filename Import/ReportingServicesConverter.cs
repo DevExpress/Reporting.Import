@@ -35,6 +35,7 @@ namespace DevExpress.XtraReports.Import {
         };
 
         readonly static string[] supportedNamespaces = {
+            "http://schemas.microsoft.com/sqlserver/reporting/2005/01/reportdefinition",
             "http://schemas.microsoft.com/sqlserver/reporting/2008/01/reportdefinition",
             "http://schemas.microsoft.com/sqlserver/reporting/2010/01/reportdefinition",
             "http://schemas.microsoft.com/sqlserver/reporting/2016/01/reportdefinition",
@@ -117,8 +118,26 @@ namespace DevExpress.XtraReports.Import {
                     case "DefaultFontFamily":
                         ProcessFont(e.Value, TargetReport, "FontFamily", null);
                         break;
-                    case "Language":                  // ???
-                    case "ConsumeContainerWhitespace":// ???
+                    case "SnapToGrid":
+                        TargetReport.SnappingMode = e.Value.Equals("true") ? SnappingMode.SnapToGridAndSnapLines : SnappingMode.SnapLines;
+                        break;
+                    case "DrawGrid":
+                        TargetReport.DrawGrid = e.Value.Equals("true");
+                        break;
+                    case "PageHeader":
+                        ProcessPageBand(e, BandKind.PageHeader);
+                        break;
+                    case "PageFooter":
+                        ProcessPageBand(e, BandKind.PageFooter);
+                        break;
+                    case "PageWidth":
+                        TargetReport.PageWidth = unitConverter.ToInt(e.Value);
+                        break;
+                    case "PageHeight":
+                        TargetReport.PageHeight = unitConverter.ToInt(e.Value);
+                        break;
+                    case "Language":                  //not supported
+                    case "ConsumeContainerWhitespace"://not supported
                     case "ReportUnitType":            //handled
                     case "DataSources":               //handled
                     case "DataSets":                  //handled
@@ -126,8 +145,11 @@ namespace DevExpress.XtraReports.Import {
                     case "ReportParametersLayout":    //not supported
                     case "AutoRefresh":               //not supported
                     case "Author":                    //not supported
-                    case "Width":                     // < 2008        ??????????? todo
+                    case "Width":                     // < 2008
                     case "ReportTemplate":
+                    case "InteractiveHeight":
+                    case "InteractiveWidth":
+                    case "Description":
                         break;
                     default:
 #if DEBUG
@@ -154,7 +176,7 @@ namespace DevExpress.XtraReports.Import {
                     case "Page":
                         ProcessPage(e);
                         break;
-                    case "Width":                     //??????? todo
+                    case "Width":                     //not supported
                         break;
                     default:
                         TraceInfo(Messages.ReportSectionElement_NotSupported_Format, name);
@@ -164,7 +186,6 @@ namespace DevExpress.XtraReports.Import {
         }
 
         void ProcessPage(XElement page) {
-            var detailBand = EnsureEmptyBand<DetailBand>(TargetReport, BandKind.Detail);
             IterateElements(page, (e, name) => {
                 switch(name) {
                     case "PageHeader":
@@ -192,15 +213,18 @@ namespace DevExpress.XtraReports.Import {
                         TargetReport.Bands[BandKind.BottomMargin].HeightF = unitConverter.ToInt(e.Value);
                         break;
                     case "Columns":
-                        detailBand.MultiColumn.ColumnCount = int.Parse(e.Value);
+                        var columns_detailBand = EnsureEmptyBand<DetailBand>(TargetReport, BandKind.Detail);
+                        columns_detailBand.MultiColumn.ColumnCount = int.Parse(e.Value);
                         break;
                     case "ColumnSpacing":
-                        detailBand.MultiColumn.ColumnSpacing = unitConverter.ToFloat(e.Value);
+                        var columnSpacing_detailBand = (DetailBand)TargetReport.Bands[BandKind.Detail];
+                        if(columnSpacing_detailBand != null)
+                            columnSpacing_detailBand.MultiColumn.ColumnSpacing = unitConverter.ToFloat(e.Value);
                         break;
-                    case "InteractiveHeight":        //?????
-                    case "InteractiveWidth":
+                    case "InteractiveHeight":        //not supported
+                    case "InteractiveWidth":         //not supported
                         break;
-                    case "Style":                    //todo crossband or notSupported?
+                    case "Style":                    //not supported in page
                         if(!e.HasElements)
                             break;
                         TraceInfo(Messages.StyleElement_NotSupported);
@@ -221,7 +245,7 @@ namespace DevExpress.XtraReports.Import {
                         ProcessReportItems(e, TargetReport);
                         break;
                     case "Height":
-                        break; // skip
+                        break;
                     case "Style":
                         ProcessStyle(e, TargetReport);
                         break;
@@ -308,7 +332,7 @@ namespace DevExpress.XtraReports.Import {
                     ProcessChartControl(reportItem, container, yBodyOffset);
                     break;
                 default:
-                    TraceInfo(Messages.ReportItemsElement_NotSupported_Format, reportItem.Name.LocalName);
+                    TraceWarning(Messages.ReportItemsElement_NotSupported_Format, reportItem.Name.LocalName);
                     break;
             }
         }
@@ -324,8 +348,9 @@ namespace DevExpress.XtraReports.Import {
             }
             XRLabel control = container as XRLabel;
             if(control == null) {
-                control = new XRLabel { Multiline = true, CanGrow = true };
-                container.Controls.Add(control);
+                control = CreateXRControl<XRLabel>(container);
+                control.Multiline = true;
+                control.CanGrow = true;
             }
             ProcessTextBoxAsLabel(textBoxElement, control, yBodyOffset);
         }
@@ -334,7 +359,7 @@ namespace DevExpress.XtraReports.Import {
             if(runs.Count() > 1) {
                 throw new NotSupportedException("Label can be converted from single TextRun.");
             }
-            this.SetControlName(control, textBoxElement);
+            this.SetComponentName(control, textBoxElement);
             control.TextAlignment = TextAlignment.TopLeft;
             IterateElements(textBoxElement, (e, name) => {
                 ExpressionParserResult expressionParserResult;
@@ -345,6 +370,7 @@ namespace DevExpress.XtraReports.Import {
                             if(expressionParserResult.HasSummary)
                                 control.Summary.Running = SummaryRunning.Group;
                             control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.Text)));
+                            UpdateControlsReportDataSource(control, expressionParserResult);
                         } else
                             control.Text = e.Value;
                         break;
@@ -357,14 +383,12 @@ namespace DevExpress.XtraReports.Import {
                 }
             });
         }
-        public void SetControlName<T>(T control, string name) {
-            NamingMapper.GenerateAndAssignXRControlName(control, name);
+        public void SetComponentName<T>(T component, string name = null) {
+            NamingMapper.GenerateAndAssignXRControlName(component, name);
         }
 
         void ProcessTextBoxAsRichText(XElement textBoxElement, XRControl container, float yBodyOffset) {
-            var control = new XRRichText();
-            this.SetControlName(control, textBoxElement);
-            container.Controls.Add(control);
+            var control = CreateXRControl<XRRichText>(container, textBoxElement);
             IterateElements(textBoxElement, (e, name) => {
                 switch(name) {
                     case "Paragraphs":
@@ -406,8 +430,11 @@ namespace DevExpress.XtraReports.Import {
                     case "Style":
                         ProcessRichParagraphStyle(e, paragraphProperties, documentServer);
                         break;
+                    case "LeftIndent":
+                        paragraphProperties.FirstLineIndent = float.Parse(unitConverter.CutUnits(e.Value));
+                        break;
                     default:
-                        TraceInfo(Messages.RichParagraphElement_NotSupported_Format, name);
+                        TraceWarning(Messages.RichParagraphElement_NotSupported_Format, name);
                         break;
                 }
             });
@@ -448,11 +475,10 @@ namespace DevExpress.XtraReports.Import {
             DocumentRange range;
             ExpressionParserResult expressionResult;
             if(TryGetExpression(value, control, false, out expressionResult)) {
-                const string format = "RichText with Run Expression '{0}' is not supported.";
-                TraceInfo(format, expressionResult.Expression);
-                range = documentServer.Document.AppendText(string.Format(format, expressionResult.Expression));
+                TraceInfo(Messages.RichTextRunExpression_NotSupported_Format, control.Name, expressionResult.Expression);
+                range = documentServer.Document.AppendText(string.Format(Messages.RichTextRunExpression_NotSupported_Format, control.Name, expressionResult.Expression));
             } else {
-                var isHtml = textRun.Element(xmlns + "MarkupType")?.Value == "HTML";
+                bool isHtml = textRun.Element(xmlns + "MarkupType")?.Value == "HTML";
                 range = isHtml
                     ? documentServer.Document.AppendHtmlText(value)
                     : documentServer.Document.AppendText(value);
@@ -464,7 +490,8 @@ namespace DevExpress.XtraReports.Import {
                         break;
                     case "MarkupType":    // handled
                     case "Value":         // handled
-                    case "Label":         //not supported in rich ???
+                    case "Label":         // not supported
+                    case "ActionInfo":    // not supported
                         break;
                     default:
                         TraceInfo(string.Format(Messages.RichTextRunElement_NotSupported_Format, name));
@@ -525,6 +552,7 @@ namespace DevExpress.XtraReports.Import {
                                         if(expressionParserResult.HasSummary)
                                             label.Summary.Running = SummaryRunning.Group;
                                         label.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(label.Text)));
+                                        UpdateControlsReportDataSource(label, expressionParserResult);
                                     } else
                                         label.Text = textRunElement.Value;
                                     break;
@@ -536,6 +564,7 @@ namespace DevExpress.XtraReports.Import {
                                         label.NullValueText = e.Value;
                                     break;
                                 case "MarkupType":
+                                case "ActionInfo":
                                     break;
                                 default:
                                     TraceInfo(Messages.RichTextRunElement_NotSupported_Format, textRunElementName);
@@ -543,8 +572,14 @@ namespace DevExpress.XtraReports.Import {
                             }
                         });
                         break;
+                    case "LeftIndent":
+                        label.Padding = new PaddingInfo(label.Padding, label.Dpi) { Left = unitConverter.ToInt(e.Value) };
+                        break;
                     case "SpaceBefore":
+                        label.Padding = new PaddingInfo(label.Padding, label.Dpi) { Top = unitConverter.ToInt(e.Value) };
+                        break;
                     case "SpaceAfter":
+                        label.Padding = new PaddingInfo(label.Padding, label.Dpi) { Bottom = unitConverter.ToInt(e.Value) };
                         break;
                     default:
                         TraceInfo(Messages.RichTextParagraphElement_NotSupported_Format, name);
@@ -569,9 +604,7 @@ namespace DevExpress.XtraReports.Import {
         #endregion
 
         void ProcessRectangleControl(XElement rectangleElement, XRControl container, float yBodyOffset) {
-            var control = new XRPanel();
-            container.Controls.Add(control);
-            this.SetControlName(control, rectangleElement);
+            var control = CreateXRControl<XRPanel>(container, rectangleElement);
             IterateElements(rectangleElement, (e, name) => {
                 switch(name) {
                     case "ReportItems":
@@ -586,11 +619,12 @@ namespace DevExpress.XtraReports.Import {
 
         void ProcessTablixControl(XElement e, ref XRControl container, ref float yBodyOffset) {
             var matrixConverter = new TablixConverter(this);
+            XtraReportBase report = container.Report;
             ConvertionResult convertionResult = matrixConverter.Convert(e, container, yBodyOffset, this);
             if(convertionResult.ShouldStartNewBand) {
                 yBodyOffset += convertionResult.MatrixHeight;
-                var report = container.Report;
                 var detailReportBand = new DetailReportBand();
+                detailReportBand.Dpi = report.Dpi;
                 report.Bands.Add(detailReportBand);
                 container = EnsureEmptyBand<DetailBand>(detailReportBand, BandKind.Detail);
             }
@@ -604,9 +638,8 @@ namespace DevExpress.XtraReports.Import {
             { "Clip", ImageSizeMode.Normal }
         };
         public void ProcessImageControl(XElement imageElement, XRControl container, float yBodyOffset) {
-            var control = new XRPictureBox() { Sizing = ImageSizeMode.AutoSize };
-            this.SetControlName(control, imageElement);
-            container.Controls.Add(control);
+            var control = CreateXRControl<XRPictureBox>(container, imageElement);
+            control.Sizing = ImageSizeMode.AutoSize;
             var sourceType = imageElement.Element(xmlns + "Source").Value;
             var value = imageElement.Element(xmlns + "Value");
             ProcessImageControlSource(control, sourceType, value);
@@ -653,9 +686,8 @@ namespace DevExpress.XtraReports.Import {
         #endregion
 
         void ProcessLineControl(XElement lineElement, XRControl container, float yBandOffset) {
-            var control = new XRShape() { Shape = new XtraPrinting.Shape.ShapeLine() };
-            container.Controls.Add(control);
-            this.SetControlName(control, lineElement);
+            var control = CreateXRControl<XRShape>(container, lineElement);
+            control.Shape = new XtraPrinting.Shape.ShapeLine();
             float top = 0;
             float left = 0;
             float width = 0;
@@ -679,8 +711,11 @@ namespace DevExpress.XtraReports.Import {
                     case "Style":
                         ProcessStyle(e, control);
                         break;
+                    case "Visibility":
+                        ProcessControlVisibility(e, control);
+                        break;
                     default:
-                        TraceInfo("Line Element '{0}' for  is not supported.", name);
+                        TraceInfo(Messages.LineElement_NotSupported_Format, control.Name, name);
                         break;
                 }
             });
@@ -698,9 +733,7 @@ namespace DevExpress.XtraReports.Import {
 
         #region Subreport Control
         void ProcessSubreportControl(XElement subreportElement, XRControl container, float yBodyOffset) {
-            var control = new XRSubreport();
-            this.SetControlName(control, subreportElement);
-            container.Controls.Add(control);
+            var control = CreateXRControl<XRSubreport>(container, subreportElement);
             IterateElements(subreportElement, (e, name) => {
                 switch(name) {
                     case "ReportName":
@@ -714,6 +747,15 @@ namespace DevExpress.XtraReports.Import {
                         break;
                 }
             });
+        }
+
+        T CreateXRControl<T>(XRControl container, XElement element = null)
+            where T : XRControl, new() {
+            T control = new T { Dpi = container.Dpi };
+            if(element != null)
+                this.SetComponentName(control, element);
+            container.Controls.Add(control);
+            return control;
         }
 
         void ProcessSubreportParameters(XElement parametersElement, XRSubreport control) {
@@ -734,8 +776,7 @@ namespace DevExpress.XtraReports.Import {
         #endregion
 
         void ProcessChartControl(XElement chartElement, XRControl container, float yBodyOffset) {
-            var chart = new XRChart();
-            container.Controls.Add(chart);
+            var chart = CreateXRControl<XRChart>(container, chartElement);
             chart.Series.Add(new XtraCharts.Series("Series Stub", XtraCharts.ViewType.Line));
             IterateElements(chartElement, (e, name) => {
                 switch(name) {
@@ -775,16 +816,23 @@ namespace DevExpress.XtraReports.Import {
                 case "Bookmark":
                     ProcessBookmark(element, control);
                     break;
-                case "ZIndex":                         // no need to handle ?
-                case "RepeatWith":                     // not supported
-                case "DataElementOutput":              // not supported
+                case "ActionInfo":
+                    ProcessActionInfo(element, control);
+                    break;
+                case "HideDuplicates":
+                    break;
+                case "ZIndex":
+                case "RepeatWith":
                 case "DefaultName":                    // not supported
                 case "WatermarkTextbox":               // not supported
                 case "ToolTip":                        // not supported
-                case "HideDuplicates":                 // todo???
-                case "PageBreak":                      // todo!!!
+                case "TablixBody":                     // handled
+                case "TablixColumnHierarchy":          // handled
+                case "TablixRowHierarchy":             // handled
+                case "DataSetName":                    // handled
                     break;
                 default:
+                    TraceInfo(Messages.ControlProperty_NotSupported_Format, name);
                     break;
             }
         }
@@ -821,10 +869,9 @@ namespace DevExpress.XtraReports.Import {
                     case "Hidden":
                         if(expressionParserResult != null) {
                             control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.Visible)));
-                            return;
+                            UpdateControlsReportDataSource(control, expressionParserResult);
+                            break;
                         } else control.Visible = bool.Parse(e.Value);
-                        break;
-                    case "ToggleItem":                // not supported
                         break;
                     default:
                         TraceInfo(Messages.VisibilityProperty_NotSupported_Format, name, control.Name);
@@ -836,9 +883,27 @@ namespace DevExpress.XtraReports.Import {
         void ProcessBookmark(XElement bookmark, XRControl control) {
             ExpressionParserResult expressionParserResult;
             TryGetExpression(bookmark, control, false, out expressionParserResult);
-            if(expressionParserResult != null)
+            if(expressionParserResult != null) {
                 control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.Bookmark)));
-            else control.Bookmark = bookmark.Value;
+                UpdateControlsReportDataSource(control, expressionParserResult);
+            } else
+                control.Bookmark = bookmark.Value;
+        }
+
+        void ProcessActionInfo(XElement actionInfo, XRControl control) {
+            foreach(var action in actionInfo.Descendants(xmlns + "Action")) {
+                var actionCore = action.Elements().Single();
+                if(actionCore.Name.LocalName == "Hyperlink") {
+                    ExpressionParserResult expressionResult;
+                    if(actionCore != null && TryGetExpression(actionCore, control, false, out expressionResult)) {
+                        control.ExpressionBindings.Add(expressionResult.ToExpressionBinding(nameof(control.NavigateUrl)));
+                        UpdateControlsReportDataSource(control, expressionResult);
+                    } else
+                        control.NavigateUrl = actionCore.Value;
+                } else {
+                    TraceInfo(Messages.ActionInfo_NotSupported_Format, control.Name, actionCore.Name.LocalName);
+                }
+            }
         }
         #endregion
 
@@ -847,13 +912,34 @@ namespace DevExpress.XtraReports.Import {
             var textAlignment = style.Element(xmlns + "TextAlign")?.Value;
             var verticalAlignment = style.Element(xmlns + "VerticalAlign")?.Value;
             ProcessTextAlignment(textAlignment, verticalAlignment, control);
-
+            var bordersModel = new BordersModel(this, control);
             IterateElements(style, (e, name) => {
                 ExpressionParserResult expressionParserResult;
                 TryGetExpression(e, control, false, out expressionParserResult);
                 switch(name) {
                     case "Border":
-                        ProcessBorder(e, control);
+                        bordersModel.Parse(e);
+                        break;
+                    case "LeftBorder":
+                        bordersModel.Parse(e, BorderSide.Left);
+                        break;
+                    case "TopBorder":
+                        bordersModel.Parse(e, BorderSide.Top);
+                        break;
+                    case "RightBorder":
+                        bordersModel.Parse(e, BorderSide.Right);
+                        break;
+                    case "BottomBorder":
+                        bordersModel.Parse(e, BorderSide.Bottom);
+                        break;
+                    case "BorderColor":          //rdl 2005
+                        bordersModel.ParseBorderColor(e);
+                        break;
+                    case "BorderStyle":          //rdl 2005
+                        bordersModel.ParseBorderStyle(e);
+                        break;
+                    case "BorderWidth":          //rdl 2005
+                        bordersModel.ParseBorderWidth(e);
                         break;
                     case "Color":
                         ProcessColor(e.Value, control, nameof(XRControl.ForeColor), expressionParserResult);
@@ -883,33 +969,35 @@ namespace DevExpress.XtraReports.Import {
                     case "VerticalAlign":        // handled
                     case "TextAlign":            // handled
                         break;
-                    case "BottomBorder":         // not supported ???
-                    case "TopBorder":            // not supported ???
-                    case "LeftBorder":           // not supported ???
-                    case "RightBorder":          // not supported ???
-                    case "Language":             // not supported ???
-                    case "NumeralLanguage":      // not supported ???
-                    case "LineHeight":           // not supported ???
-                    case "Calendar":             // not supported ???
+                    case "Language":             // not supported
+                    case "NumeralLanguage":      // not supported
+                    case "LineHeight":           // not supported
+                    case "Calendar":             // not supported
+                        break;
+                    case "BackgroundGradientType":
+                        if(e.Value != "None")
+                            TraceInfo(Messages.StyleProperty_NotSupported_Format, name, e.Value);
+                        break;
                     default:
                         TraceInfo(Messages.StyleProperty_NotSupported_Format, name, e.Value);
                         break;
                 }
             });
+            bordersModel.ApplyToControl();
         }
 
         #region TextAlignment
         void ProcessTextAlignment(string horizontalAlignment, string verticalAlignment, XRControl control) {
             var effectiveAlignment = control.GetEffectiveTextAlignment();
             if(IsExpression(horizontalAlignment)) {
-                Tracer.TraceWarning(NativeSR.TraceSource, Messages.TextAlign_Expression_NotSupported);
+                TraceInfo(Messages.TextAlign_Expression_NotSupported);
                 horizontalAlignment = TextAlignmentToTextAlign(effectiveAlignment);
             } else if(string.IsNullOrEmpty(horizontalAlignment) || horizontalAlignment == "General" || horizontalAlignment == "Default") {
                 horizontalAlignment = TextAlignmentToTextAlign(effectiveAlignment);
             }
 
             if(IsExpression(verticalAlignment)) {
-                Tracer.TraceWarning(NativeSR.TraceSource, Messages.VerticalAlign_Expression_NotSupported);
+                TraceInfo(NativeSR.TraceSource, Messages.VerticalAlign_Expression_NotSupported);
                 verticalAlignment = TextAlignmentToVerticalAlign(effectiveAlignment);
             } else if(string.IsNullOrEmpty(verticalAlignment) || verticalAlignment == "Default") {
                 verticalAlignment = TextAlignmentToVerticalAlign(effectiveAlignment);
@@ -983,44 +1071,145 @@ namespace DevExpress.XtraReports.Import {
             }
         }
         #endregion
+        #region borders
+        class BordersModel {
+            public class BorderModel {
+                public Color? Color { get; set; }
+                public BorderDashStyle? Style { get; set; }
+                public float? Width { get; set; }
+            }
 
-        readonly static Dictionary<string, BorderDashStyle> borderDashStyleMap = new Dictionary<string, BorderDashStyle>() {
-            { "Default", BorderDashStyle.Solid},
-            { "Dotted", BorderDashStyle.Dot},
-            { "Dashed", BorderDashStyle.Dash},
-            { "Solid", BorderDashStyle.Solid},
-            { "DashDot", BorderDashStyle.DashDot},
-            { "DashDotDot", BorderDashStyle.DashDotDot},
-        };
+            readonly static Dictionary<string, BorderSide> borderSideMap = new Dictionary<string, BorderSide>() {
+                { "Default", BorderSide.All },
+                { "Left", BorderSide.Left },
+                { "Top", BorderSide.Top },
+                { "Right", BorderSide.Right },
+                { "Bottom", BorderSide.Bottom },
+            };
+            readonly static Dictionary<string, BorderDashStyle?> borderDashStyleMap = new Dictionary<string, BorderDashStyle?>() {
+                { "Default", BorderDashStyle.Solid},
+                { "Dotted", BorderDashStyle.Dot},
+                { "Dashed", BorderDashStyle.Dash},
+                { "Solid", BorderDashStyle.Solid},
+                { "DashDot", BorderDashStyle.DashDot},
+                { "DashDotDot", BorderDashStyle.DashDotDot},
+                { "Double", BorderDashStyle.Double},
+                { "None", null},
+            };
+            readonly XRControl control;
+            readonly IReportingServicesConverter converter;
+            readonly Dictionary<BorderSide, BorderModel> borderModels = new Dictionary<BorderSide, BorderModel>() {
+                { BorderSide.All, new BorderModel() },
+                { BorderSide.Left, new BorderModel() },
+                { BorderSide.Top, new BorderModel() },
+                { BorderSide.Right, new BorderModel() },
+                { BorderSide.Bottom, new BorderModel() }
+            };
 
-        void ProcessBorder(XElement border, XRControl control) {
-            IterateElements(border, (e, name) => {
-                ExpressionParserResult expressionParserResult;
-                TryGetExpression(e, control, false, out expressionParserResult);
-                switch(name) {
-                    case "Style":
-                        ProcessBorderDashStyle(e.Value, control, expressionParserResult);
-                        break;
-                    case "Color":
-                        var colorProperty = control is XRShape ? nameof(XRShape.ForeColor) : nameof(XRControl.BorderColor);
-                        ProcessColor(e.Value, control, colorProperty, expressionParserResult);
-                        break;
-                    case "Width":
-                        ProcessBorderWidth(e.Value, control, expressionParserResult);
-                        break;
-                    default:
-                        Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.BorderProperty_NotSupported_Format, name, e.Value));
-                        break;
+            public ExpressionParserResult ColorExpression { get; set; }
+            public ExpressionParserResult StyleExpression { get; set; }
+            public ExpressionParserResult WidthExpression { get; set; }
+
+            public BordersModel(IReportingServicesConverter converter, XRControl control) {
+                this.control = control;
+                this.converter = converter;
+            }
+
+            public void ApplyToControl() {
+                SetControlProperty(control, nameof(XRControl.BorderDashStyle), GetStyle(), StyleExpression);
+                var colorProperty = control is XRShape ? nameof(XRShape.ForeColor) : nameof(XRControl.BorderColor);
+                SetControlProperty(control, colorProperty, GetColor(), ColorExpression);
+                if(control is XRShape)
+                    SetControlProperty(control, nameof(XRShape.LineWidth), (int)Math.Round(GetWidth()), WidthExpression);
+                else
+                    SetControlProperty(control, nameof(XRControl.BorderWidth), GetWidth(), WidthExpression);
+                control.Borders = GetBorderSides();
+            }
+
+            public void Parse(XElement borderElement, BorderSide side = BorderSide.All) {
+                if(borderElement == null)
+                    return;
+                var borderModel = borderModels[side];
+                IterateElements(borderElement, (e, name) => {
+                    ExpressionParserResult expressionParserResult;
+                    if(converter.TryGetExpression(e.Value, control.Name, out expressionParserResult)) {
+                        TraceInfo(Messages.Border_Expression_NotSupported_Format, name);
+                        return;
+                    }
+                    switch(name) {
+                        case "Style":
+                            SetModelProperty(borderModel, nameof(BorderModel.Style), borderDashStyleMap[e.Value], expressionParserResult);
+                            break;
+                        case "Color":
+                            SetModelProperty(borderModel, nameof(BorderModel.Color), ParseColor(e.Value), expressionParserResult);
+                            break;
+                        case "Width":
+                            SetModelProperty(borderModel, nameof(BorderModel.Width), converter.UnitConverter.ToFloat(e.Value), expressionParserResult);
+                            break;
+                        default:
+                            TraceInfo(string.Format(Messages.BorderProperty_NotSupported_Format, name, e.Value));
+                            break;
+                    }
+                });
+            }
+            public void ParseBorderColor(XElement borderColorElement) {
+                ParseBorderPropertyCore(borderColorElement, nameof(BorderModel.Color), ParseColor);
+            }
+            public void ParseBorderStyle(XElement borderStyleElement) {
+                ParseBorderPropertyCore(borderStyleElement, nameof(BorderModel.Style), x=> borderDashStyleMap[x]);
+            }
+            public void ParseBorderWidth(XElement borderWidthElement) {
+                ParseBorderPropertyCore(borderWidthElement, nameof(BorderModel.Width), converter.UnitConverter.ToFloat);
+            }
+            void ParseBorderPropertyCore<T>(XElement element, string propertyName, Func<string, T> convertValue) {
+                if(element == null)
+                    return;
+                IterateElements(element, (e, name) => {
+                    ExpressionParserResult expressionParserResult;
+                    converter.TryGetExpression(e.Value, control.Name, out expressionParserResult);
+                    BorderSide? side = borderSideMap[name];
+                    if(expressionParserResult != null) {
+                        if(side == BorderSide.All)
+                            XRAccessor.SetProperty(this, propertyName + "Expression", expressionParserResult);
+                    } else {
+                        XRAccessor.SetProperty(borderModels[side.Value], propertyName, convertValue(e.Value));
+                    }
+                });
+            }
+
+            Color GetColor() {
+                return borderModels.Values.Select(x => x.Color).FirstOrDefault(x => x.HasValue) ?? Color.Black;
+            }
+            float GetWidth() {
+                return borderModels.Values.Select(x => x.Width).FirstOrDefault(x => x.HasValue) ?? 1f;
+            }
+            BorderDashStyle GetStyle() {
+                return borderModels.Values.Select(x => x.Style).FirstOrDefault(x => x.HasValue) ?? BorderDashStyle.Solid;
+            }
+            BorderSide GetBorderSides() {
+                var sides = borderModels[BorderSide.All].Style.HasValue ? BorderSide.All : BorderSide.None;
+                foreach(var modelItem in borderModels.Skip(1)) {
+                    if(modelItem.Value.Style.HasValue)
+                        sides |= modelItem.Key;
                 }
-            });
-        }
+                return sides;
+            }
 
-        static void ProcessBorderDashStyle(string value, XRControl control, ExpressionParserResult expressionParserResult) {
-            if(expressionParserResult != null)
-                control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.BorderDashStyle)));
-            else
-                control.BorderDashStyle = borderDashStyleMap.GetValueOrDefault(value, BorderDashStyle.Solid);
+            static void SetModelProperty<T>(BorderModel model, string propertyName, T value, ExpressionParserResult expressionParserResult) {
+                if(expressionParserResult != null)
+                    XRAccessor.SetProperty(model, propertyName + "Expression", expressionParserResult);
+                else
+                    XRAccessor.SetProperty(model, propertyName, value);
+            }
+            void SetControlProperty<T>(XRControl control, string propertyName, T value, ExpressionParserResult expressionParserResult) {
+                if(expressionParserResult != null) {
+                    control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(propertyName));
+                    converter.UpdateControlsReportDataSource(control, expressionParserResult);
+                }
+                XRAccessor.SetProperty(control, propertyName, value);
+            }
         }
+        #endregion
 
         void ProcessPadding(string value, string side, XRControl control, ExpressionParserResult expressionParserResult) {
             var hasExpression = expressionParserResult != null;
@@ -1174,7 +1363,7 @@ namespace DevExpress.XtraReports.Import {
         };
         void ProcessWritingMode(XElement writingMode, XRControl control, ExpressionParserResult expressionParserResult) {
             if(expressionParserResult != null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.StyleExpression_NotSupported_Format, writingMode.Name.LocalName));
+                TraceInfo(string.Format(Messages.StyleExpression_NotSupported_Format, writingMode.Name.LocalName));
             } else {
                 var textAngle = writingModeToTextAngleMap.GetValueOrDefault(writingMode.Value, 0);
                 if(control is XRLabel)
@@ -1182,7 +1371,7 @@ namespace DevExpress.XtraReports.Import {
                 else if(control is XRCrossTabCell)
                     ((XRCrossTabCell)control).Angle = textAngle;
                 else
-                    Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.CannotApplyStyleProperty_Format, writingMode.Name.LocalName, control.Name));
+                    TraceInfo(string.Format(Messages.CannotApplyStyleProperty_Format, writingMode.Name.LocalName, control.Name));
             }
         }
         #endregion
@@ -1199,21 +1388,19 @@ namespace DevExpress.XtraReports.Import {
             parameter.Description = parameterElement.Attribute("Prompt")?.Value;
             var dataTypeElement = parameterElement.Element(xmlns + "DataType");
             parameter.Type = GetTypeFromDataType(dataTypeElement.Value);
+            var multiValue = parameterElement.Element(xmlns + "MultiValue")?.Value ?? "false";
+            parameter.MultiValue = bool.Parse(multiValue);
+            var nullable = parameterElement.Element(xmlns + "Nullable")?.Value ?? "false";
+            parameter.AllowNull = bool.Parse(nullable);
             IterateElements(parameterElement, (e, name) => {
                 ExpressionParserResult expressionParserResult;
                 TryGetExpression(e, parameter.Name, false, out expressionParserResult);
                 switch(name) {
                     case "DefaultValue":
-                        ProcessParameterValue(e.Value, parameter, expressionParserResult);
+                        ProcessParameterValue(e, parameter, expressionParserResult);
                         break;
                     case "Hidden":
                         parameter.Visible = !bool.Parse(e.Value.ToLower());
-                        break;
-                    case "MultiValue":
-                        parameter.MultiValue = bool.Parse(e.Value.ToLower());
-                        break;
-                    case "Nullable":
-                        parameter.AllowNull = bool.Parse(e.Value.ToLower());
                         break;
                     case "Prompt":
                         parameter.Description = e.Value;
@@ -1223,6 +1410,8 @@ namespace DevExpress.XtraReports.Import {
                         break;
                     case "DataType":          //handled
                     case "AllowBlank":        //not supported
+                    case "MultiValue":        //handled
+                    case "Nullable":          //handled
                         break;
                     default:
                         TraceInfo(Messages.ParameterProperty_NotSupported_Format, name);
@@ -1231,11 +1420,35 @@ namespace DevExpress.XtraReports.Import {
                 TargetReport.Parameters.Add(parameter);
             });
         }
-        static void ProcessParameterValue(string value, Parameter parameter, ExpressionParserResult expressionParserResult) {
-            if(expressionParserResult != null)
+        void ProcessParameterValue(XElement defaultValue, Parameter parameter, ExpressionParserResult expressionParserResult) {
+            if(expressionParserResult != null) {
                 parameter.ExpressionBindings.Add(expressionParserResult.ToBasicExpressionBinding());
-            else
-                parameter.Value = ParameterHelper.ConvertFrom(value, parameter.Type, ParameterHelper.GetDefaultValue(parameter.Type));
+                return;
+            }
+            if(!defaultValue.HasElements) {
+                parameter.Value = defaultValue.Value;
+            } else {
+                var dataSetReference = defaultValue.Element(xmlns + "DataSetReference");
+                if(dataSetReference != null) {
+                    TraceInfo(Messages.Parameter_DefaultValueProperty_NotSupported_Format, "DataSetReference");
+                    return;
+                }
+                var values = defaultValue.Descendants(xmlns + "Value")
+                    .Select(x => x.Value)
+                    .Where(x => !string.IsNullOrEmpty(x));
+                var firstValue = values.FirstOrDefault();
+                if(parameter.MultiValue) {
+                    parameter.Value = values;
+                } else if(firstValue != null) {
+                    ExpressionParserResult expressionResult;
+                    if(TryGetExpression(values.First(), parameter.Name, false, out expressionResult))
+                        parameter.ExpressionBindings.Add(expressionResult.ToBasicExpressionBinding());
+                    else if(firstValue == "<ALL>" && parameter.MultiValue)
+                        parameter.SelectAllValues = true;
+                    else
+                        parameter.Value = values.First();
+                }
+            }
         }
         ValueSourceSettings ProcessParameterValueSource(XElement valueSourceElement, Type valueType) {
             string name = valueSourceElement.Name.LocalName;
@@ -1268,8 +1481,28 @@ namespace DevExpress.XtraReports.Import {
         }
 
         DynamicListLookUpSettings ProcessDynamicListLookUpSettings(XElement dynamicListElement) {
-            TraceWarning(Messages.ParameterDynamicLookups_NotSupported);
-            return null;
+            var settings = new DynamicListLookUpSettings();
+            IterateElements(dynamicListElement, (e, name) => {
+                switch(name) {
+                    case "DataSetName":
+                        DataPair dataPair;
+                        if(dataSetToDataPairMap.TryGetValue(e.Value, out dataPair)) {
+                            settings.DataSource = dataPair.Source;
+                            settings.DataMember = dataPair.Member;
+                        }
+                        break;
+                    case "ValueField":
+                        settings.ValueMember = e.Value;
+                        break;
+                    case "LabelField":
+                        settings.DisplayMember = e.Value;
+                        break;
+                    default:
+                        TraceInfo(Messages.Parameter_DynamicListProperty_NotSupported_Format, name);
+                        break;
+                }
+            });
+            return settings;
         }
 
         #endregion
@@ -1299,14 +1532,18 @@ namespace DevExpress.XtraReports.Import {
         }
         #endregion
 
-        internal static T EnsureEmptyBand<T>(XtraReportBase report, BandKind kind, Action<T> onNew = null)
+        internal static T EnsureEmptyBand<T>(XtraReportBase report, BandKind bandKind, Action<T> onNew = null)
             where T : Band {
-            T band = report.Bands[kind] as T;
+            T band = null;
+            if(!(typeof(GroupBand).IsAssignableFrom(typeof(T))))
+                band = report.Bands[bandKind] as T;
             if(band == null) {
-                band = (T)XtraReportBase.CreateBand(kind);
+                band = (T)XtraReportBase.CreateBand(bandKind);
                 band.Dpi = report.Dpi;
                 band.HeightF = 0f;
-                if(band is DetailBand) {
+                if(band is VerticalBand)
+                    band.WidthF = 0f;
+                else if(band is DetailBand) {
                     DetailBand detailBand = band as DetailBand;
                     detailBand.MultiColumn.ColumnSpacing = 50f;
                 }
@@ -1408,6 +1645,27 @@ namespace DevExpress.XtraReports.Import {
                 }
             }
         }
+        public void UpdateControlsReportDataSource(XRControl control, ExpressionParserResult result) {
+            if(result.UsedScopes.Count == 0)
+                return;
+            if(result.UsedScopes.Count > 1)
+                TraceInfo(Messages.ControlMultipleDataMembers_NotSupported_Format, control.Name);
+            string scope = result.UsedScopes[0];
+            XtraReportBase report = control.Report;
+            DataPair pair;
+            if(!dataSetToDataPairMap.TryGetValue(scope, out pair)) {
+                TraceInfo(Messages.ControlUsesInvalidScope_Format, control.Name, scope);
+                return;
+            }
+            if(report.DataSource == pair.Source && Equals(report.DataMember, scope))
+                return;
+            if(report.DataSource == null && string.IsNullOrEmpty(report.DataMember)) {
+                report.DataSource = pair.Source;
+                report.DataMember = pair.Member;
+            } else {
+                TraceInfo(Messages.ControlUsesDifferentScope_NotSupported_Format, control.Name, scope, report.DataMember);
+            }
+        }
 
         static void PostProcessClean(XtraReportBase report) {
             BandCollection bands = report.Bands;
@@ -1424,7 +1682,7 @@ namespace DevExpress.XtraReports.Import {
             }
         }
 
-        public static void TraceInfo(string format, params object[] args) {
+        static void TraceInfo(string format, params object[] args) {
             Tracer.TraceInformation(NativeSR.TraceSource, new FormattableString(format, args));
         }
         static void TraceWarning(string format, params object[] args) {
@@ -1436,30 +1694,35 @@ namespace DevExpress.XtraReports.Import {
         static void TraceError(string format, params object[] args) {
             Tracer.TraceError(NativeSR.TraceSource, new FormattableString(format, args));
         }
-        struct FormattableString {
-            public string Format { get; }
-            public object[] Args { get; }
-            public FormattableString(string format, params object[] args) {
-                Format = format;
-                Args = args;
-            }
-            public override string ToString() {
-                return string.Format(Format, Args);
-            }
+    }
+    [Serializable]
+    class FormattableString {
+        public string Format { get; }
+        public object[] Args { get; }
+        public FormattableString(string format, params object[] args) {
+            Format = format;
+            Args = args;
+        }
+        public override string ToString() {
+            return string.Format(Format, Args);
+        }
+        public FormattableString Append(FormattableString other) {
+            return new FormattableString("{0} {1}", this, other);
         }
     }
     interface IReportingServicesConverter {
         UnitConverter UnitConverter { get; }
         string ReportFolder { get; }
         void ProcessCommonControlProperties(XElement element, XRControl control, float yBodyOffset, bool throwException = true);
-        void SetControlName<T>(T control, string name);
+        void SetComponentName<T>(T component, string name = null);
         void ProcessReportItem(XElement reportItem, XRControl container, ref float yBodyOffset);
         bool TryGetExpression(string value, string componentName, out ExpressionParserResult result);
         bool TryGetDataPair(string dataSetName, out DataPair pair);
+        void UpdateControlsReportDataSource(XRControl control, ExpressionParserResult expressionParserResult);
     }
     static class ReportingServicesConverterExtensions {
-        public static void SetControlName<T>(this IReportingServicesConverter converter, T control, XElement element) {
-            converter.SetControlName(control, element.Attribute("Name")?.Value);
+        public static void SetComponentName<T>(this IReportingServicesConverter converter, T component, XElement element) {
+            converter.SetComponentName(component, element.Attribute("Name")?.Value);
         }
         public static CriteriaOperator ParseExpression(this IReportingServicesConverter converter, string value, string componentName) {
             ExpressionParserResult expressionParserResult;

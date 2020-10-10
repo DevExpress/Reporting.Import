@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Linq;
 using System.Xml.Linq;
 using DevExpress.Data.Filtering;
+using DevExpress.XtraReports.UI;
 
 namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
     class Model {
@@ -54,6 +56,38 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             DataSetName = dataSetName;
             FilterExpression = filterCriteria;
             SortExpressions = sortExpressions;
+        }
+    }
+    [Flags]
+    enum TablixMemberHierarchy {
+        Columns,
+        Rows
+    }
+    static class ModelExtensions {
+        public static string GetFilterString(this Model model, TablixMemberHierarchy hierarchy) {
+            var result = new List<CriteriaOperator>();
+            if(!ReferenceEquals(model.FilterExpression, null))
+                result.Add(model.FilterExpression);
+            if(hierarchy.HasFlag(TablixMemberHierarchy.Columns))
+                result.AddRange(Collect(model.ColumnHierarchy));
+            if(hierarchy.HasFlag(TablixMemberHierarchy.Rows))
+                result.AddRange(Collect(model.RowHierarchy));
+            return Filter.CombineFilters(result)?.ToString() ?? string.Empty;
+        }
+        static IEnumerable<CriteriaOperator> Collect(Hierarchy hierarchy) {
+            IEnumerable<CriteriaOperator> criteria = hierarchy.Members.SelectMany(x => x.Flatten())
+                .Where(x => x.HasGroup())
+                .Select(x => x.FilterCriteria);
+            return criteria;
+        }
+        public static bool TryGetSortOrderByExpression(this Model model, CriteriaOperator criteria, out XRColumnSortOrder order) {
+            var sortExpression = model.SortExpressions.Find(x => Equals(x, criteria));
+            if(sortExpression == null) {
+                order = XRColumnSortOrder.None;
+                return false;
+            }
+            order = sortExpression.SortOrder;
+            return true;
         }
     }
 }

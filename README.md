@@ -4,6 +4,10 @@ This repository contains a console application project designed to convert third
 
 # Project Specifics
 
+> _This report conversion tool is limited in scope (due to differences between DevExpress Reports and other reporting tools). Review the [requirements and limitations](https://docs.devexpress.com/XtraReports/1468/get-started-with-devexpress-reporting/add-a-report-to-your-.net-application/convert-third-party-reports-to-devexpress-reports#requirements) related to this product before you convert reports._
+> 
+> _This project intentionally does not contain third-party libraries. To compile the application, add references to required assemblies._
+
 You can modify the following options in project properties:
 
  *	The **Build** Tab’s **Conditional compilation symbols** specifies the list of all supported third-party suppliers (all are enabled by default);
@@ -34,15 +38,15 @@ If an RDL/RDLC or Crystal Reports function cannot be converted, it is replaced w
 
 Set the **UnrecognizedFunctionBehavior** option to **Ignore** to leave unrecognized functions in expressions.
 
-    RDL/RDLC Reports:
-    ```
-    ReportsImport /in:c:\0\rdlc\file.rdlc /out:c:\0\converted\testreport.repx /ssrs:UnrecognizedFunctionBehavior=Ignore
-    ```
+RDL/RDLC Reports:
+```
+ReportsImport /in:c:\0\rdlc\file.rdlc /out:c:\0\converted\testreport.repx /ssrs:UnrecognizedFunctionBehavior=Ignore
+```
 
-    Crystal Reports:
-    ```
-    ReportsImport /in:c:\0\crystal\file.rpt /out:c:\0\converted\testreport.repx /crystal:UnrecognizedFunctionBehavior=Ignore
-    ```
+Crystal Reports:
+```
+ReportsImport /in:c:\0\crystal\file.rpt /out:c:\0\converted\testreport.repx /crystal:UnrecognizedFunctionBehavior=Ignore
+```
 
 The command listed above produces a .REPX file with the unrecognized *IsDate* function:
 
@@ -52,8 +56,3 @@ The command listed above produces a .REPX file with the unrecognized *IsDate* fu
 
 You can implement [custom functions](https://docs.devexpress.com/XtraReports/DevExpress.XtraReports.Expressions.CustomFunctions) to support unrecognized functions in DevExpress reports (the *IsDate* custom function in the sample above).
 
-# Limitations
-
-This report conversion tool is limited in scope (due to differences between DevExpress Reports and other reporting tools). Review the [requirements and limitations](https://docs.devexpress.com/XtraReports/1468/get-started-with-devexpress-reporting/add-a-report-to-your-.net-application/convert-third-party-reports-to-devexpress-reports) related to this product before you convert reports.
-
-**_Note: This project intentionally does not contain third-party libraries. To compile the application, add references to required assemblies._**
