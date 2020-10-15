@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.Linq;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraReports.UI;
@@ -68,7 +69,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices {
             var unitInfo = GetUnitInfo(value);
             if(value.EndsWith(unitInfo.ShortName))
                 value = value.Substring(0, value.LastIndexOf(unitInfo.ShortName));
-            var convertedValue = GraphicsUnitConverter.Convert(float.Parse(value), unitInfo.Dpi, toDpi);
+            var convertedValue = GraphicsUnitConverter.Convert(float.Parse(value, CultureInfo.InvariantCulture), unitInfo.Dpi, toDpi);
             return (float)Math.Round(convertedValue, 2);
         }
 

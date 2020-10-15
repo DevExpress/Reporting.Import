@@ -193,10 +193,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
 
         #region Connection properties
         void ProcessDataSourceReference(XElement reference, SqlDataSource dataSource) {
-            var document = GetSharedResourceDocument(converter.ReportFolder, reference.Value, "rds");
-            if(document == null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.DataSource_CannotResolveDataSourceReference_Format, reference.Value));
-            } else {
+            XDocument document = GetSharedResourceDocument(converter.ReportFolder, reference.Value, "rds");
+            if(document != null) {
                 var ns = document.Root.GetDefaultNamespace();
                 ProcessConnectionProperties(document.Root.Element(ns + "ConnectionProperties"), dataSource);
             }
@@ -357,8 +355,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
 
         static XDocument GetSharedResourceDocument(string basePath, string resourcePath, string extension) {
             resourcePath = GetSharedResourcePath(basePath, resourcePath, extension);
-            if(!File.Exists(resourcePath))
+            if(!File.Exists(resourcePath)) {
+                Tracer.TraceInformation(NativeSR.TraceSource, new FormattableString(Messages.DataSource_CannotResolveDataSourceReference_Format, resourcePath));
                 return null;
+            }
             using(FileStream stream = File.OpenRead(resourcePath))
                 return Utils.SafeXml.CreateXDocument(stream);
         }

@@ -171,6 +171,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "cint":
                     Assert(parameters.Count == 1, "CInt");
                     return new FunctionOperator(FunctionOperatorType.ToInt, parameters[0]);
+                case "trim":
+                    Assert(parameters.Count == 1, "Trim");
+                    return new FunctionOperator(FunctionOperatorType.Trim, parameters[0]);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);

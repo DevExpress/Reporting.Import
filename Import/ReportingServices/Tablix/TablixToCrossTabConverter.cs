@@ -164,21 +164,23 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             if(ReferenceEquals(criteria, null))
                 return null;
             var functionOperator = criteria as FunctionOperator;
-            if(ReferenceEquals(functionOperator, null))
-                return null;
-            if(functionOperator.OperatorType == FunctionOperatorType.Custom) {
-                var ops = functionOperator.Operands;
-                if(ops.Count == 2) {
-                    var methodName = (ops[0] as ConstantValue)?.Value as string;
-                    const string sumPrefix = "sum";
-                    if(methodName.StartsWith(sumPrefix)) {
-                        SummaryFunc summaryFunc;
-                        if(Enum.TryParse(methodName.Substring(sumPrefix.Length), out summaryFunc))
-                            return Tuple.Create(Map(summaryFunc), ops[1]);
+            var operandProperty = criteria as OperandProperty;
+            if(!ReferenceEquals(functionOperator, null)) {
+                if(functionOperator.OperatorType == FunctionOperatorType.Custom) {
+                    CriteriaOperatorCollection ops = functionOperator.Operands;
+                    if(ops.Count == 2) {
+                        var methodName = (ops[0] as ConstantValue)?.Value as string;
+                        const string sumPrefix = "sum";
+                        if(!string.IsNullOrEmpty(methodName) && methodName.StartsWith(sumPrefix)) {
+                            SummaryFunc summaryFunc;
+                            if(Enum.TryParse(methodName.Substring(sumPrefix.Length), out summaryFunc))
+                                return Tuple.Create(Map(summaryFunc), ops[1]);
+                        }
                     }
                 }
-            }
-            return new Tuple<SummaryType, CriteriaOperator>(SummaryType.Average, criteria);
+            } else if(!ReferenceEquals(operandProperty, null))
+                return new Tuple<SummaryType, CriteriaOperator>(SummaryType.Sum, operandProperty);
+            return null;
         }
         static SummaryType Map(SummaryFunc summaryFunc) {
             switch(summaryFunc) {
