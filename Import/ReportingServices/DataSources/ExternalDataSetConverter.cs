@@ -28,10 +28,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             this.currentProjectRootNamespace = currentProjectRootNamespace;
         }
 
-        public void Convert(XElement dataSetInfo, DataSetConversionState state) {
+        public bool Convert(XElement dataSetInfo, DataSetConversionState state) {
             var dataSetName = dataSetInfo.Element(rdns + "DataSetName").Value;
             if(string.IsNullOrEmpty(dataSetName))
-                return;
+                return false;
             var dataSetSchemaPath = dataSetInfo.Element(rdns + "SchemaPath")?.Value ?? dataSetName;
             var tableName = dataSetInfo.Element(rdns + "TableName").Value;
             var dataSetType = ResolveDataSetType(dataSetName);
@@ -49,10 +49,11 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                     ProcessSchema(schemaDocument, state);
                 } else {
                     Tracer.TraceInformation(NativeSR.TraceSource, new FormattableString(Messages.DataSource_CannotProcessDataSet_Format, dataSetName));
-                    return;
+                    return false;
                 }
             }
             state.Query = state.DataSource.Queries.SingleOrDefault(x => x.Name == tableName);
+            return state.Query != null;
         }
 
         bool TryConvertWithConverter(DataSet dataSet, DataSetConversionState state) {

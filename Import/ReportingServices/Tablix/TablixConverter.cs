@@ -144,6 +144,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             var stubLabel = new XRLabel {
                 Name = model.Name,
                 Text = Messages.NotConvertedControl_Stub,
+                Dpi = container.Dpi,
                 BoundsF = model.Bounds
             };
             container.Controls.Add(stubLabel);

@@ -136,8 +136,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                 }
                 conversionState.DataSource = GetOrAddDataSource(dataSourceName);
                 if(dataSetInfo != null) {
-                    new ExternalDataSetConverter(this, typeResolver, designerHost, currentProjectRootNamespace).Convert(dataSetInfo, conversionState);
-                    return;
+                    var externalConverter = new ExternalDataSetConverter(this, typeResolver, designerHost, currentProjectRootNamespace);
+                    if(externalConverter.Convert(dataSetInfo, conversionState))
+                        return;
                 }
             }
 

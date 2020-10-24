@@ -24,6 +24,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             this.shouldUpdateOffsetOnDetailBand = shouldUpdateOffsetOnDetailBand;
         }
         public bool Convert(XRControl container) {
+            if(container is XRPanel)
+                container = container.Band;
             if(!(container is Band))
                 throw new NotSupportedException(string.Format(Messages.NestedMatrix_NotSupported_Format, container.Name, container.GetType().Name));
             Tuple<bool, XtraReportBase> result = BeforeConvert((Band)container);

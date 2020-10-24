@@ -174,6 +174,12 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "trim":
                     Assert(parameters.Count == 1, "Trim");
                     return new FunctionOperator(FunctionOperatorType.Trim, parameters[0]);
+                case "ucase":
+                    Assert(parameters.Count == 1, "UCase");
+                    return new FunctionOperator(FunctionOperatorType.Upper, parameters[0]);
+                case "lcase":
+                    Assert(parameters.Count == 1, "LCase");
+                    return new FunctionOperator(FunctionOperatorType.Lower, parameters[0]);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);
