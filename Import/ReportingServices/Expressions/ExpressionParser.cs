@@ -180,6 +180,23 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "lcase":
                     Assert(parameters.Count == 1, "LCase");
                     return new FunctionOperator(FunctionOperatorType.Lower, parameters[0]);
+                case "instr":
+                    Assert(parameters.Count == 2, "InStr");
+                    return new BinaryOperator(new FunctionOperator(FunctionOperatorType.CharIndex, parameters[1], parameters[0]), new ConstantValue(1), BinaryOperatorType.Plus); // CharIndex([1], [0]) + 1
+                case "left":
+                    Assert(parameters.Count == 2, "Left");
+                    return new FunctionOperator(FunctionOperatorType.Substring, parameters[0], new ConstantValue(0), parameters[1]);
+                case "right":
+                    Assert(parameters.Count == 2, "Right");
+                    var rightLen = new FunctionOperator(FunctionOperatorType.Len, parameters[0]);
+                    return new FunctionOperator(
+                        FunctionOperatorType.Substring,
+                        parameters[0],
+                        new BinaryOperator(rightLen, parameters[1], BinaryOperatorType.Minus),
+                        parameters[1]);
+                case "len":
+                    Assert(parameters.Count == 1, "Len");
+                    return new FunctionOperator(FunctionOperatorType.Len, parameters[0]);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);
