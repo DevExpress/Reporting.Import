@@ -32,8 +32,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             var operandProperty = Expression as OperandProperty;
             if(!ReferenceEquals(operandProperty, null))
                 return operandProperty.PropertyName;
-            DevExpress.Data.IDataContainerBase2 dataContainer = report;
-            var calculatedField = new CalculatedField(dataContainer.GetEffectiveDataSource(), dataContainer.GetEffectiveDataMember()) {
+            var calculatedField = new CalculatedField(report.DataSource, report.DataMember) {
                 Expression = Expression?.ToString()
             };
             rootConverter.SetComponentName(calculatedField, groupName);
