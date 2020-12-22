@@ -29,7 +29,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
         }
 
         public bool Convert(XElement dataSetInfo, DataSetConversionState state) {
-            var dataSetName = dataSetInfo.Element(rdns + "DataSetName").Value;
+            var dataSetName = dataSetInfo.Element(rdns + "DataSetName")?.Value;
             if(string.IsNullOrEmpty(dataSetName))
                 return false;
             var dataSetSchemaPath = dataSetInfo.Element(rdns + "SchemaPath")?.Value ?? dataSetName;
