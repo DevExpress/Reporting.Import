@@ -276,6 +276,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                 queryParameter.Value = converter.TryGetExpression(value, $"{componentName}.{queryParameter.Name}", out expressionResult)
                     ? expressionResult.ToDataAccessExpression()
                     : (object)value;
+                queryParameter.Type = queryParameter.Value.GetType();
             }
         }
 
