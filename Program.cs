@@ -100,6 +100,11 @@ namespace DevExpress.XtraReports.Import {
                     reportingServicesConverter.UnrecognizedFunctionBehavior = string.Equals(unrecognizedFunctionBehavior, nameof(UnrecognizedFunctionBehavior.Ignore))
                         ? UnrecognizedFunctionBehavior.Ignore
                         : UnrecognizedFunctionBehavior.InsertWarning;
+                } 
+                if(ssrsProperties.TryGetValue("MultipleTextRunBehavior", out var multipleTextRunBehavior)) {
+                    ssrsConverter.MultipleTextRunBehavior = string.Equals(multipleTextRunBehavior, nameof(MultipleTextRunBehavior.RichText))
+                        ? MultipleTextRunBehavior.RichText
+                        : MultipleTextRunBehavior.CombinedExpression;
                 }
                 string ignoreQueryValidation;
                 if(ssrsProperties.TryGetValue("IgnoreQueryValidation", out ignoreQueryValidation))
