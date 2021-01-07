@@ -315,10 +315,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             if(query == null) {
                 var commandTypeEnum = (CommandType)Enum.Parse(typeof(CommandType), commandType);
                 var command = new SqlCommand() { CommandType = commandTypeEnum, CommandText = commandText };
-                query = DataSetToSqlDataSourceConverter.CreateSqlQuery(state.DataSetName, command);
-                if(query != null) {
-                    state.DataSource.Queries.Add(query);
-                }
+                SqlDataSource.DisableCustomQueryValidation = false;
+                query = new CustomSqlQuery(state.DataSetName, command.CommandText.Trim());
+                state.DataSource.Queries.Add(query);
             }
             return query;
         }
