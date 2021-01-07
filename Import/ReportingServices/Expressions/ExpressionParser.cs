@@ -237,9 +237,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "Globals":
                     return ProcessGlobals(property);
             }
-            if(property == "Value")
+            if(string.Equals(property, "Value", StringComparison.CurrentCultureIgnoreCase))
                 return criteria;
-            if(property == "ToString")
+            if(string.Equals(property, "ToString", StringComparison.CurrentCultureIgnoreCase))
                 return new FunctionOperator(FunctionOperatorType.ToStr, criteria);
             Fail(new FormattableString(Messages.ExpressionParser_Field_NotSupported_Format, property));
             return null;
