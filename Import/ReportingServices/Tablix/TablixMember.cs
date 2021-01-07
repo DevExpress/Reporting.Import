@@ -22,13 +22,14 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         static TablixMember Parse(XElement tablixMemberElement, string componentName, IReportingServicesConverter converter) {
             XNamespace ns = tablixMemberElement.GetDefaultNamespace();
             XElement group = tablixMemberElement.Element(ns + "Group");
+            var repeatOnNewPage = bool.Parse(tablixMemberElement.Element(ns + "RepeatOnNewPage")?.Value ?? "false");
             string groupName = group?.Attribute("Name").Value;
             HeaderModel header = HeaderModel.Parse(tablixMemberElement.Element(ns + "TablixHeader"), converter.UnitConverter);
             CriteriaOperator filterCriteria = Filter.ParseFilters(group?.Element(ns + "Filters"), componentName, converter);
             List<ExpressionMember> groupExpressions = ExpressionMember.Parse(group?.Element(ns + "GroupExpressions"), componentName, converter);
             List<SortExpressionMember> sortExpressions = SortExpressionMember.Parse(tablixMemberElement.Element(ns + "SortExpressions"), componentName, converter);
             List<TablixMember> members = ParseContainer(tablixMemberElement, componentName, converter);
-            return new TablixMember(groupName, header, filterCriteria, groupExpressions, sortExpressions, members);
+            return new TablixMember(groupName, header, filterCriteria, groupExpressions, sortExpressions, members, repeatOnNewPage);
         }
         public string GroupName { get; }
         public HeaderModel Header { get; }
@@ -36,13 +37,16 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         public ReadOnlyCollection<ExpressionMember> GroupExpressions { get; }
         public ReadOnlyCollection<SortExpressionMember> SortExpressions { get; }
         public ReadOnlyCollection<TablixMember> Members { get; }
-        public TablixMember(string groupName, HeaderModel header, CriteriaOperator filterCriteria, IList<ExpressionMember> groupExpressions, IList<SortExpressionMember> sortExpressions, IList<TablixMember> members) {
+        public bool RepeatOnNewPage { get; }
+
+        public TablixMember(string groupName, HeaderModel header, CriteriaOperator filterCriteria, IList<ExpressionMember> groupExpressions, IList<SortExpressionMember> sortExpressions, IList<TablixMember> members, bool repeatOnNewPage) {
             GroupName = groupName;
             Header = header;
             FilterCriteria = filterCriteria;
             GroupExpressions = new ReadOnlyCollection<ExpressionMember>(groupExpressions);
             SortExpressions = new ReadOnlyCollection<SortExpressionMember>(sortExpressions);
             Members = new ReadOnlyCollection<TablixMember>(members);
+            RepeatOnNewPage = repeatOnNewPage;
         }
 
         public bool TryGetSortExpressionMember(CriteriaOperator criteria, out SortExpressionMember sortExpression) {

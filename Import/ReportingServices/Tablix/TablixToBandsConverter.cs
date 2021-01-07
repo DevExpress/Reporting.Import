@@ -54,7 +54,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             if(groupBand == null) {
                 groupBand = new T {
                     Level = groupLevel,
-                    PrintAcrossBands = member.GetRowGroupPrintAcrossBands()
+                    PrintAcrossBands = member.GetRowGroupPrintAcrossBands(),
+                    RepeatEveryPage = member.RepeatOnNewPage
                 };
                 groupLevel += DetailBandExists ? 1 : -1;
                 InitializeNewBand(groupBand, member, report);
