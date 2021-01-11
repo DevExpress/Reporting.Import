@@ -276,6 +276,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                 queryParameter.Value = converter.TryGetExpression(value, $"{componentName}.{queryParameter.Name}", out expressionResult)
                     ? expressionResult.ToDataAccessExpression()
                     : (object)value;
+                queryParameter.Type = queryParameter.Value.GetType();
             }
         }
 
@@ -324,7 +325,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
 
         static QueryParameter GetOrAddQueryParameter(XElement parameter, DataSetConversionState state) {
             var name = parameter.Attribute("Name").Value;
-            if(name.StartsWith("@"))
+            if(name.StartsWith("@") && !(state.Query is StoredProcQuery))
                 name = name.Substring(1);
             var queryParameter = state.Parameters.SingleOrDefault(x => x.Name == name);
             if(queryParameter == null) {
