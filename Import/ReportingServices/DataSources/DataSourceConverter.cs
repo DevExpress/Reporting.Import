@@ -327,8 +327,6 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                 if(query != null) {
                     state.DataSource.Queries.Add(query);
                 }
- 
-                state.DataSource.Queries.Add(query);
             }
             return query;
         }
