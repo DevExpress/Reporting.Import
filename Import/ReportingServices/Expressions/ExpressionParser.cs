@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevExpress.Data.Filtering;
@@ -142,6 +142,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "count":
                     Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Count"));
                     return summaryFunctionsProvider.Create(parameters, Aggregate.Count);
+                case "countdistinct":
+                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "DCount"));
+                    return summaryFunctionsProvider.Create(parameters, "sumDCount");
                 case "avg":
                     Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Avg"));
                     return summaryFunctionsProvider.Create(parameters, Aggregate.Avg);
@@ -157,6 +160,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "formatcurrency":
                     Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "FormatCurrency"));
                     return new FunctionOperator("FormatString", new ConstantValue("{0:C}"), parameters[0]);
+                case "formatdatetime":
+                    Assert(parameters.Count == 2, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "FormatDateTime"));
+                    return new FunctionOperator("FormatString", parameters[1], parameters[0]);
                 case "countrows":
                     Assert(parameters.Count == 0, "CountRows");
                     return new OperandProperty("DataSource.RowCount");
@@ -197,6 +203,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "len":
                     Assert(parameters.Count == 1, "Len");
                     return new FunctionOperator(FunctionOperatorType.Len, parameters[0]);
+                case "isnothing":
+                    Assert(parameters.Count == 1, "IsNothing");
+                    return new FunctionOperator(FunctionOperatorType.IsNullOrEmpty, parameters[0]);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);
@@ -210,15 +219,15 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         }
 
         CriteriaOperator GetOperandPropertyExclamation(string left, string right) {
-            switch(left) {
-                case "Fields":
+            switch(left.ToLowerInvariant()) {
+                case "fields":
                     accessToFields = true;
                     return new OperandProperty(right);
-                case "Parameters":
+                case "parameters":
                     return new OperandParameter(right);
-                case "ReportItems":
+                case "reportitems":
                     return new OperandProperty("ReportItems." + right);
-                case "Globals":
+                case "globals":
                     return ProcessGlobals(right);
             }
             Fail(new FormattableString(Messages.ExpressionParser_BuiltInCollection_NotSupported_Format, left));
@@ -236,10 +245,16 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                         return CreateStub(property);
                 case "Globals":
                     return ProcessGlobals(property);
+                case "DateFormat":
+                    return ProcessDateFormat(property);
+                case "String":
+                    if (property == "Empty")
+                        return new ConstantValue("");
+                    break;
             }
-            if(property == "Value")
+            if(string.Equals(property, "Value", StringComparison.InvariantCultureIgnoreCase))
                 return criteria;
-            if(property == "ToString")
+            if(string.Equals(property, "ToString", StringComparison.InvariantCultureIgnoreCase))
                 return new FunctionOperator(FunctionOperatorType.ToStr, criteria);
             Fail(new FormattableString(Messages.ExpressionParser_Field_NotSupported_Format, property));
             return null;
@@ -260,6 +275,14 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
             Fail(new FormattableString(Messages.ExpressionParser_GlobalField_NotSupported_Format, right));
             return null;
         }
+        CriteriaOperator ProcessDateFormat(string right) {
+            switch(right) {
+                case "ShortDate":
+                    return new ConstantValue("{0:d}");
+            }
+            Fail(new FormattableString(Messages.ExpressionParser_DateFormat_NotSupported_Format, right));
+            return null;
+        }
     }
     abstract class SummaryFunctionsProviderBase {
         public HashSet<string> UsedScopes { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -268,6 +291,11 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
             IsCalled = true;
             AddScope(criteria);
             return CreateCore(criteria[0], aggregate);
+        }
+        public CriteriaOperator Create(IList<CriteriaOperator> criteria, string summaryFunction) {
+            IsCalled = true;
+            AddScope(criteria);
+            return CreateCore(criteria[0], summaryFunction);
         }
         public void AddScope(IList<CriteriaOperator> criteria) {
             if(criteria.Count > 1) {
@@ -278,10 +306,14 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
             }
         }
         protected abstract CriteriaOperator CreateCore(CriteriaOperator criteria, Aggregate aggregate);
+        protected abstract CriteriaOperator CreateCore(CriteriaOperator criteria, string summaryFunction);
     }
     class GenericSummaryFunctionsProvider : SummaryFunctionsProviderBase {
         protected override CriteriaOperator CreateCore(CriteriaOperator criteria, Aggregate aggregate) {
             return new AggregateOperand(null, criteria, aggregate, null);
+        }
+        protected override CriteriaOperator CreateCore(CriteriaOperator criteria, string summaryFunction) { 
+            throw new NotSupportedException();
         }
     }
     class ReportSummaryFunctionsProvider : SummaryFunctionsProviderBase {
@@ -298,6 +330,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 throw new ArgumentOutOfRangeException(nameof(aggregate), string.Format(Messages.ExpressionParser_NotSupportedAggregate_Format, aggregate));
             }
             return new FunctionOperator("sum" + summaryFunc, criteria);
+        }
+
+        protected override CriteriaOperator CreateCore(CriteriaOperator criteria, string summaryFunction) {
+            return new FunctionOperator(summaryFunction, criteria);
         }
     }
 }

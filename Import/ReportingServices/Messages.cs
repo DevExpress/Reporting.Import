@@ -55,6 +55,7 @@
             ExpressionParser_BuiltInCollection_NotSupported_Format = "The '{0}!' collection could not be converted.",
             ExpressionParser_Field_NotSupported_Format = "The '.{0}' field could not be converted.",
             ExpressionParser_GlobalField_NotSupported_Format = "The 'Global.{0}' built-in field could not be converted.",
+            ExpressionParser_DateFormat_NotSupported_Format = "The 'DateFormat.{0}' built-in field could not be converted.",
             Expression_FilterOperatorNotSupported_Format = "Cannot convert the '{0}' filter operator.",
             Tablix_NotSupportedInsideTableCell_Format = "Tablix control '{0}' is not supported inside the table cell",
             DataSource_ConnectionParameters_Expression_NotSupported = "Expression value is not supported for connection parameters.",
