@@ -95,13 +95,18 @@ namespace DevExpress.XtraReports.Import {
             if(extension == ".rdl" || extension == ".rdlc") {
                 Dictionary<string, string> ssrsProperties = CreateSubArg(argDictionary, "/ssrs");
                 string unrecognizedFunctionBehavior;
-                var crystalConverter = new ReportingServicesConverter();
+                var reportingServicesConverter = new ReportingServicesConverter();
                 if(ssrsProperties.TryGetValue("UnrecognizedFunctionBehavior", out unrecognizedFunctionBehavior)) {
-                    crystalConverter.UnrecognizedFunctionBehavior = string.Equals(unrecognizedFunctionBehavior, nameof(UnrecognizedFunctionBehavior.Ignore))
+                    reportingServicesConverter.UnrecognizedFunctionBehavior = string.Equals(unrecognizedFunctionBehavior, nameof(UnrecognizedFunctionBehavior.Ignore))
                         ? UnrecognizedFunctionBehavior.Ignore
                         : UnrecognizedFunctionBehavior.InsertWarning;
                 }
-                return crystalConverter;
+                string ignoreQueryValidation;
+                if(ssrsProperties.TryGetValue("IgnoreQueryValidation", out ignoreQueryValidation))
+                {
+                    reportingServicesConverter.IgnoreQueryValidation = bool.Parse(ignoreQueryValidation);
+                }
+                return reportingServicesConverter;
             }
             throw new ArgumentException($"File extension '{extension}' is not supported.");
         }

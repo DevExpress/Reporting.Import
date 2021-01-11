@@ -42,6 +42,7 @@ namespace DevExpress.XtraReports.Import {
         };
 
         public UnrecognizedFunctionBehavior UnrecognizedFunctionBehavior { get; set; } = UnrecognizedFunctionBehavior.InsertWarning;
+        public bool IgnoreQueryValidation { get; set; } = false;
 
         UnitConverter unitConverter;
         string reportFolder;
@@ -1716,6 +1717,7 @@ namespace DevExpress.XtraReports.Import {
     interface IReportingServicesConverter {
         UnitConverter UnitConverter { get; }
         string ReportFolder { get; }
+        bool IgnoreQueryValidation { get; }
         void ProcessCommonControlProperties(XElement element, XRControl control, float yBodyOffset, bool throwException = true);
         void SetComponentName<T>(T component, string name = null);
         void ProcessReportItem(XElement reportItem, XRControl container, ref float yBodyOffset);

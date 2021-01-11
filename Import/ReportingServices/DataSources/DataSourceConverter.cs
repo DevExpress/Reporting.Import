@@ -310,12 +310,24 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             });
         }
 
-        static SqlQuery GetOrAddQuery(DataSetConversionState state, string commandType, string commandText) {
+        SqlQuery GetOrAddQuery(DataSetConversionState state, string commandType, string commandText) {
             var query = state.DataSource.Queries.SingleOrDefault(x => x.Name == state.DataSetName);
             if(query == null) {
                 var commandTypeEnum = (CommandType)Enum.Parse(typeof(CommandType), commandType);
                 var command = new SqlCommand() { CommandType = commandTypeEnum, CommandText = commandText };
-                query = new CustomSqlQuery(state.DataSetName, command.CommandText.Trim());
+                if (converter.IgnoreQueryValidation && commandTypeEnum == CommandType.Text)
+                {
+                    query = new CustomSqlQuery(state.DataSetName, command.CommandText.Trim());
+                }
+                else
+                {
+                    query = DataSetToSqlDataSourceConverter.CreateSqlQuery(state.DataSetName, command);
+                }
+
+                if(query != null) {
+                    state.DataSource.Queries.Add(query);
+                }
+ 
                 state.DataSource.Queries.Add(query);
             }
             return query;
