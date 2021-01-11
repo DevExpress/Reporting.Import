@@ -203,6 +203,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "len":
                     Assert(parameters.Count == 1, "Len");
                     return new FunctionOperator(FunctionOperatorType.Len, parameters[0]);
+                case "isnothing":
+                    Assert(parameters.Count == 1, "IsNothing");
+                    return new FunctionOperator(FunctionOperatorType.IsNullOrEmpty, parameters[0]);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);
@@ -244,6 +247,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                     return ProcessGlobals(property);
                 case "DateFormat":
                     return ProcessDateFormat(property);
+                case "String":
+                    if (property == "Empty")
+                        return new ConstantValue("");
+                    break;
             }
             if(string.Equals(property, "Value", StringComparison.CurrentCultureIgnoreCase))
                 return criteria;
