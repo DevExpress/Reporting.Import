@@ -252,9 +252,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                         return new ConstantValue("");
                     break;
             }
-            if(string.Equals(property, "Value", StringComparison.CurrentCultureIgnoreCase))
+            if(string.Equals(property, "Value", StringComparison.InvariantCultureIgnoreCase))
                 return criteria;
-            if(string.Equals(property, "ToString", StringComparison.CurrentCultureIgnoreCase))
+            if(string.Equals(property, "ToString", StringComparison.InvariantCultureIgnoreCase))
                 return new FunctionOperator(FunctionOperatorType.ToStr, criteria);
             Fail(new FormattableString(Messages.ExpressionParser_Field_NotSupported_Format, property));
             return null;
@@ -278,7 +278,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         CriteriaOperator ProcessDateFormat(string right) {
             switch(right) {
                 case "ShortDate":
-                    return new ConstantValue("{0:MM/dd/yyyy}");
+                    return new ConstantValue("{0:d}");
             }
             Fail(new FormattableString(Messages.ExpressionParser_DateFormat_NotSupported_Format, right));
             return null;
