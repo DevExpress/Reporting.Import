@@ -22,7 +22,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         static TablixMember Parse(XElement tablixMemberElement, string componentName, IReportingServicesConverter converter) {
             XNamespace ns = tablixMemberElement.GetDefaultNamespace();
             XElement group = tablixMemberElement.Element(ns + "Group");
-            var repeatOnNewPage = bool.Parse(tablixMemberElement.Element(ns + "RepeatOnNewPage")?.Value ?? "false");
+            var repeatOnNewPage = string.Equals(tablixMemberElement.Element(ns + "RepeatOnNewPage")?.Value, "true", StringComparison.InvariantCultureIgnoreCase);
             string groupName = group?.Attribute("Name").Value;
             HeaderModel header = HeaderModel.Parse(tablixMemberElement.Element(ns + "TablixHeader"), converter.UnitConverter);
             CriteriaOperator filterCriteria = Filter.ParseFilters(group?.Element(ns + "Filters"), componentName, converter);
