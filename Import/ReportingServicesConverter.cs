@@ -361,7 +361,7 @@ namespace DevExpress.XtraReports.Import {
         public void ProcessTextBoxAsLabel(XElement textBoxElement, XRLabel control, float yBodyOffset) {
             var runs = textBoxElement.Descendants(xmlns + "TextRun");
             if(runs.Count() > 1) {
-                throw new NotSupportedException("Label can be converted from single TextRun.");
+                throw new NotSupportedException(string.Format(Messages.TextBoxWithMultipleTextRunsToXRLabel_NotSupported, control.Name));
             }
             this.SetComponentName(control, textBoxElement);
             control.TextAlignment = TextAlignment.TopLeft;

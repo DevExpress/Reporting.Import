@@ -37,6 +37,7 @@
             RichTextRunStyle_NotSupported_Format = "RichText Run style '{0}' is not supported.",
             RichTextParagraphElement_NotSupported_Format = "RichText Paragraph element '{0}' is not supported.",
             RichTextRunExpression_NotSupported_Format = "Cannot convert the '{0}' RichText with the following Run Expression: '{1}'.",
+            TextBoxWithMultipleTextRunsToXRLabel_NotSupported = "TextBox '{0}' should contain only one TextRun to be converted to an XRLabel.",
             LineElement_NotSupported_Format = "Cannot convert the '{0}' Line's '{1}' element.",
             ImageSourceType_NotSupported_Format = "ImageControl SourceType '{0}' is not supported.",
             VisibilityProperty_NotSupported_Format = "The '{0}' property visibility is not supported for the '{1}' control.",

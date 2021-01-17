@@ -116,7 +116,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             ProcessDataSetCore(dataSetElement, conversionState, dataSetName);
 
             var queryName = conversionState.Query?.Name ?? conversionState.DataSetName;
-            dataSetToDataSourceMap[dataSetName] = new DataPair(conversionState.DataSource, queryName);
+            if(conversionState.DataSource != null)
+                dataSetToDataSourceMap[dataSetName] = new DataPair(conversionState.DataSource, queryName);
         }
 
         void ProcessDataSetCore(XElement dataSetElement, DataSetConversionState conversionState, string componentName) {
@@ -141,7 +142,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                         return;
                 }
             }
-
+            if(conversionState.DataSource == null)
+                return;
             var fieldsElement = dataSetElement.Element(ns + "Fields");
             if(fieldsElement != null)
                 ProcessDataSetFields(fieldsElement, conversionState);
@@ -260,7 +262,6 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                 return;
             ProcessDataSetParameters(queryElement.Element(ns + "DataSetParameters"), state);
             ProcessQueryParameters(queryElement.Element(ns + "QueryParameters"), state, componentName);
-
         }
 
         void ProcessQueryParameters(XElement queryParameters, DataSetConversionState state, string componentName) {
@@ -273,10 +274,13 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
                 var value = queryParameterElement.Element(ns + "Value").Value;
 
                 ExpressionParserResult expressionResult;
-                queryParameter.Value = converter.TryGetExpression(value, $"{componentName}.{queryParameter.Name}", out expressionResult)
-                    ? expressionResult.ToDataAccessExpression()
-                    : (object)value;
-                queryParameter.Type = queryParameter.Value.GetType();
+                if(converter.TryGetExpression(value, $"{componentName}.{queryParameter.Name}", out expressionResult)) {
+                    queryParameter.Value = expressionResult.ToDataAccessExpression(typeof(string));
+                    queryParameter.Type = typeof(DataAccess.Expression);
+                } else {
+                    queryParameter.Value = value;
+                    queryParameter.Type = typeof(string);
+                }
             }
         }
 
@@ -315,12 +319,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             if(query == null) {
                 var commandTypeEnum = (CommandType)Enum.Parse(typeof(CommandType), commandType);
                 var command = new SqlCommand() { CommandType = commandTypeEnum, CommandText = commandText };
-                if (converter.IgnoreQueryValidation && commandTypeEnum == CommandType.Text)
-                {
+                if(converter.IgnoreQueryValidation && commandTypeEnum == CommandType.Text) {
                     query = new CustomSqlQuery(state.DataSetName, command.CommandText.Trim());
-                }
-                else
-                {
+                } else {
                     query = DataSetToSqlDataSourceConverter.CreateSqlQuery(state.DataSetName, command);
                 }
 

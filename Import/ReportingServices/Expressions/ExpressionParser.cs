@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using DevExpress.Data.Filtering;
@@ -39,8 +39,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         public BasicExpressionBinding ToBasicExpressionBinding() {
             return new BasicExpressionBinding("Value", Expression);
         }
-        public Expression ToDataAccessExpression() {
-            return new Expression(Expression);
+        public Expression ToDataAccessExpression(Type type) {
+            return new Expression(Expression, type);
         }
     }
     public partial class ExpressionParser {
@@ -203,6 +203,15 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "len":
                     Assert(parameters.Count == 1, "Len");
                     return new FunctionOperator(FunctionOperatorType.Len, parameters[0]);
+                case "now":
+                    Assert(parameters.Count == 0, "Now");
+                    return new FunctionOperator(FunctionOperatorType.Now);
+                case "today":
+                    Assert(parameters.Count == 0, "Today");
+                    return new FunctionOperator(FunctionOperatorType.Today);
+                case "minute":
+                    Assert(parameters.Count == 1, "Minute");
+                    return new FunctionOperator(FunctionOperatorType.GetMinute, parameters[0]);
                 case "isnothing":
                     Assert(parameters.Count == 1, "IsNothing");
                     return new FunctionOperator(FunctionOperatorType.IsNullOrEmpty, parameters[0]);
