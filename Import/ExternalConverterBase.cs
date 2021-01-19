@@ -173,9 +173,4 @@ namespace DevExpress.XtraReports.Import {
         InsertWarning,
         Ignore
     }
-    public enum MultipleTextRunBehavior
-    {
-        RichText,
-        CombinedExpression
-    }
 }

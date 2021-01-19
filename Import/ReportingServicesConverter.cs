@@ -44,7 +44,6 @@ namespace DevExpress.XtraReports.Import {
 
         public UnrecognizedFunctionBehavior UnrecognizedFunctionBehavior { get; set; } = UnrecognizedFunctionBehavior.InsertWarning;
         public bool IgnoreQueryValidation { get; set; } = false;
-        public MultipleTextRunBehavior MultipleTextRunBehavior { get; set; } = MultipleTextRunBehavior.RichText;
 
         UnitConverter unitConverter;
         string reportFolder;
@@ -347,10 +346,13 @@ namespace DevExpress.XtraReports.Import {
 
         #region TextBox control
         void ProcessTextboxControl(XElement textBoxElement, XRControl container, float yBodyOffset) {
-            IEnumerable<XElement> runs = textBoxElement.Descendants(xmlns + "TextRun");
-            if(runs.Count() > 1 && MultipleTextRunBehavior == MultipleTextRunBehavior.RichText) {
-                ProcessTextBoxAsRichText(textBoxElement, container, yBodyOffset);
-                return;
+            List<XElement> runs = textBoxElement.Descendants(xmlns + "TextRun").ToList();
+            if(runs.Count > 1) {
+                var distinctStyles = runs.Descendants(xmlns + "Style").Select(e => e.ToString()).Distinct().Count();
+                if(distinctStyles > 1) {
+                    ProcessTextBoxAsRichText(textBoxElement, container, yBodyOffset);
+                    return;
+                }
             }
             XRLabel control = container as XRLabel;
             if(control == null) {
@@ -361,10 +363,6 @@ namespace DevExpress.XtraReports.Import {
             ProcessTextBoxAsLabel(textBoxElement, control, yBodyOffset);
         }
         public void ProcessTextBoxAsLabel(XElement textBoxElement, XRLabel control, float yBodyOffset) {
-            var runs = textBoxElement.Descendants(xmlns + "TextRun");
-            if(runs.Count() > 1) {
-                throw new NotSupportedException(string.Format(Messages.TextBoxWithMultipleTextRunsToXRLabel_NotSupported, control.Name));
-            }
             this.SetComponentName(control, textBoxElement);
             control.TextAlignment = TextAlignment.TopLeft;
             IterateElements(textBoxElement, (e, name) => {
@@ -577,25 +575,9 @@ namespace DevExpress.XtraReports.Import {
                             });
                         }
 
-                        void HandleValue(string value)
-                        {
-                            TryGetExpression(value, label, true, out var expressionParserResult);
-
-                            if (expressionParserResult != null)
-                            {
-                                if (expressionParserResult.HasSummary)
-                                    label.Summary.Running = SummaryRunning.Group;
-                                label.ExpressionBindings.Add(
-                                    expressionParserResult.ToExpressionBinding(nameof(label.Text)));
-                                UpdateControlsReportDataSource(label, expressionParserResult);
-                            }
-                            else
-                                label.Text = value;
-                        }
-
                         if (values.Count == 1)
                         {
-                            HandleValue(values[0]);
+                            ProcessLabelValue(values[0], label);
                             break;
                         }
 
@@ -609,7 +591,7 @@ namespace DevExpress.XtraReports.Import {
                                 sb.Append(" & ");
                         }
 
-                        HandleValue(sb.ToString());
+                        ProcessLabelValue(sb.ToString(), label);
                         break;
                     case "LeftIndent":
                         label.Padding = new PaddingInfo(label.Padding, label.Dpi) { Left = unitConverter.ToInt(e.Value) };
@@ -625,6 +607,18 @@ namespace DevExpress.XtraReports.Import {
                         break;
                 }
             });
+        }
+
+        void ProcessLabelValue(string value, XRLabel label) {
+            ExpressionParserResult expressionParserResult;
+            TryGetExpression(value, label, true, out expressionParserResult);
+
+            if(expressionParserResult != null) {
+                if(expressionParserResult.HasSummary) label.Summary.Running = SummaryRunning.Group;
+                label.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(label.Text)));
+                UpdateControlsReportDataSource(label, expressionParserResult);
+            } else
+                label.Text = value;
         }
 
         RichEditDocumentServer CreateRichDocumentServer(Font font, Color foreColor) {
