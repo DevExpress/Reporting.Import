@@ -549,12 +549,9 @@ namespace DevExpress.XtraReports.Import {
                         var textRuns = e.Elements(xmlns + "TextRun").ToList();
                         var values = new List<string>();
 
-                        foreach (var run in textRuns)
-                        {
-                            IterateElements(run, (textRunElement, textRunElementName) =>
-                            {
-                                switch (textRunElementName)
-                                {
+                        foreach(var run in textRuns) {
+                            IterateElements(run, (textRunElement, textRunElementName) => {
+                                switch(textRunElementName) {
                                     case "Value":
                                         values.Add(textRunElement.Value);
                                         break;
@@ -562,7 +559,7 @@ namespace DevExpress.XtraReports.Import {
                                         ProcessStyle(textRunElement, label);
                                         break;
                                     case "Label":
-                                        if (textRuns.Count == 0)
+                                        if(textRuns.Count == 0)
                                             label.NullValueText = e.Value;
                                         break;
                                     case "MarkupType":
@@ -575,19 +572,17 @@ namespace DevExpress.XtraReports.Import {
                             });
                         }
 
-                        if (values.Count == 1)
-                        {
+                        if(values.Count == 1) {
                             ProcessLabelValue(values[0], label);
                             break;
                         }
 
                         var sb = new StringBuilder();
                         sb.Append("=");
-                        for (var i = 0; i < values.Count; i++)
-                        {
+                        for (var i = 0; i < values.Count; i++) {
                             var value = values[i];
                             sb.Append(IsExpression(value) ? value.Substring(1) : $"\"{value}\"");
-                            if (i < values.Count - 1)
+                            if(i < values.Count - 1)
                                 sb.Append(" & ");
                         }
 
