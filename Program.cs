@@ -101,7 +101,6 @@ namespace DevExpress.XtraReports.Import {
                         ? UnrecognizedFunctionBehavior.Ignore
                         : UnrecognizedFunctionBehavior.InsertWarning;
                 }
-
                 string ignoreQueryValidation;
                 if(ssrsProperties.TryGetValue("IgnoreQueryValidation", out ignoreQueryValidation))
                 {
