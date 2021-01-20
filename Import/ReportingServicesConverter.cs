@@ -581,7 +581,7 @@ namespace DevExpress.XtraReports.Import {
                         sb.Append("=");
                         for (var i = 0; i < values.Count; i++) {
                             var value = values[i];
-                            sb.Append(IsExpression(value) ? value.Substring(1) : $"\"{value}\"");
+                            sb.Append(IsExpression(value) ? value.Substring(1) : $"\"{value.Replace("\"","\"\"")}\"");
                             if(i < values.Count - 1)
                                 sb.Append(" & ");
                         }
