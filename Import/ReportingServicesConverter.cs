@@ -348,7 +348,7 @@ namespace DevExpress.XtraReports.Import {
         void ProcessTextboxControl(XElement textBoxElement, XRControl container, float yBodyOffset) {
             List<XElement> runs = textBoxElement.Descendants(xmlns + "TextRun").ToList();
             if(runs.Count > 1) {
-                var distinctStyles = runs.Descendants(xmlns + "Style").Select(e => e.ToString()).Distinct().Count();
+                var distinctStyles = runs.Descendants(xmlns + "Style").Distinct(XNode.EqualityComparer).Count();
                 if(distinctStyles > 1) {
                     ProcessTextBoxAsRichText(textBoxElement, container, yBodyOffset);
                     return;
