@@ -5,6 +5,7 @@ using System.ComponentModel.Design;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 using DevExpress.Data.Browsing;
 using DevExpress.Data.Filtering;
@@ -345,10 +346,13 @@ namespace DevExpress.XtraReports.Import {
 
         #region TextBox control
         void ProcessTextboxControl(XElement textBoxElement, XRControl container, float yBodyOffset) {
-            IEnumerable<XElement> runs = textBoxElement.Descendants(xmlns + "TextRun");
-            if(runs.Count() > 1) {
-                ProcessTextBoxAsRichText(textBoxElement, container, yBodyOffset);
-                return;
+            List<XElement> runs = textBoxElement.Descendants(xmlns + "TextRun").ToList();
+            if(runs.Count > 1) {
+                var distinctStyles = runs.Descendants(xmlns + "Style").Distinct(XNode.EqualityComparer).Count();
+                if(distinctStyles > 1) {
+                    ProcessTextBoxAsRichText(textBoxElement, container, yBodyOffset);
+                    return;
+                }
             }
             XRLabel control = container as XRLabel;
             if(control == null) {
@@ -359,10 +363,6 @@ namespace DevExpress.XtraReports.Import {
             ProcessTextBoxAsLabel(textBoxElement, control, yBodyOffset);
         }
         public void ProcessTextBoxAsLabel(XElement textBoxElement, XRLabel control, float yBodyOffset) {
-            var runs = textBoxElement.Descendants(xmlns + "TextRun");
-            if(runs.Count() > 1) {
-                throw new NotSupportedException(string.Format(Messages.TextBoxWithMultipleTextRunsToXRLabel_NotSupported, control.Name));
-            }
             this.SetComponentName(control, textBoxElement);
             control.TextAlignment = TextAlignment.TopLeft;
             IterateElements(textBoxElement, (e, name) => {
@@ -546,35 +546,47 @@ namespace DevExpress.XtraReports.Import {
                         ProcessStyle(e, label);
                         break;
                     case "TextRuns":
-                        var run = e.Element(xmlns + "TextRun");
-                        IterateElements(run, (textRunElement, textRunElementName) => {
-                            ExpressionParserResult expressionParserResult;
-                            TryGetExpression(textRunElement, label, true, out expressionParserResult);
-                            switch(textRunElementName) {
-                                case "Value":
-                                    if(expressionParserResult != null) {
-                                        if(expressionParserResult.HasSummary)
-                                            label.Summary.Running = SummaryRunning.Group;
-                                        label.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(label.Text)));
-                                        UpdateControlsReportDataSource(label, expressionParserResult);
-                                    } else
-                                        label.Text = textRunElement.Value;
-                                    break;
-                                case "Style":
-                                    ProcessStyle(textRunElement, label);
-                                    break;
-                                case "Label":
-                                    if(expressionParserResult == null)
-                                        label.NullValueText = e.Value;
-                                    break;
-                                case "MarkupType":
-                                case "ActionInfo":
-                                    break;
-                                default:
-                                    TraceInfo(Messages.RichTextRunElement_NotSupported_Format, textRunElementName);
-                                    break;
-                            }
-                        });
+                        var textRuns = e.Elements(xmlns + "TextRun").ToList();
+                        var values = new List<string>();
+
+                        foreach(var run in textRuns) {
+                            IterateElements(run, (textRunElement, textRunElementName) => {
+                                switch(textRunElementName) {
+                                    case "Value":
+                                        values.Add(textRunElement.Value);
+                                        break;
+                                    case "Style":
+                                        ProcessStyle(textRunElement, label);
+                                        break;
+                                    case "Label":
+                                        if(textRuns.Count == 0)
+                                            label.NullValueText = e.Value;
+                                        break;
+                                    case "MarkupType":
+                                    case "ActionInfo":
+                                        break;
+                                    default:
+                                        TraceInfo(Messages.RichTextRunElement_NotSupported_Format, textRunElementName);
+                                        break;
+                                }
+                            });
+                        }
+
+                        if(values.Count == 1) {
+                            ProcessLabelValue(values[0], label);
+                            break;
+                        }
+
+                        var sb = new StringBuilder();
+                        sb.Append("=");
+                        for (var i = 0; i < values.Count; i++) {
+                            var value = values[i];
+                            sb.Append(IsExpression(value) ? value.Substring(1) : $"\"{value.Replace("\"","\"\"")}\"");
+                            if(i < values.Count - 1)
+                                sb.Append(" & ");
+                        }
+
+                        ProcessLabelValue(sb.ToString(), label);
                         break;
                     case "LeftIndent":
                         label.Padding = new PaddingInfo(label.Padding, label.Dpi) { Left = unitConverter.ToInt(e.Value) };
@@ -590,6 +602,18 @@ namespace DevExpress.XtraReports.Import {
                         break;
                 }
             });
+        }
+
+        void ProcessLabelValue(string value, XRLabel label) {
+            ExpressionParserResult expressionParserResult;
+            TryGetExpression(value, label, true, out expressionParserResult);
+
+            if(expressionParserResult != null) {
+                if(expressionParserResult.HasSummary) label.Summary.Running = SummaryRunning.Group;
+                label.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(label.Text)));
+                UpdateControlsReportDataSource(label, expressionParserResult);
+            } else
+                label.Text = value;
         }
 
         RichEditDocumentServer CreateRichDocumentServer(Font font, Color foreColor) {
