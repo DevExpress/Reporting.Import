@@ -102,9 +102,12 @@ namespace DevExpress.XtraReports.Import {
                         : UnrecognizedFunctionBehavior.InsertWarning;
                 }
                 string ignoreQueryValidation;
-                if(ssrsProperties.TryGetValue("IgnoreQueryValidation", out ignoreQueryValidation))
-                {
+                if(ssrsProperties.TryGetValue("IgnoreQueryValidation", out ignoreQueryValidation)) {
                     reportingServicesConverter.IgnoreQueryValidation = bool.Parse(ignoreQueryValidation);
+                }
+                string useTablixStaticGroups;
+                if(ssrsProperties.TryGetValue("UseTablixStaticGroups", out useTablixStaticGroups)) {
+                    reportingServicesConverter.UseTablixStaticGroups = bool.Parse(useTablixStaticGroups);
                 }
                 return reportingServicesConverter;
             }

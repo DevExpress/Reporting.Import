@@ -22,13 +22,13 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         static TablixMember Parse(XElement tablixMemberElement, string componentName, IReportingServicesConverter converter) {
             XNamespace ns = tablixMemberElement.GetDefaultNamespace();
             XElement group = tablixMemberElement.Element(ns + "Group");
-            var repeatOnNewPage = string.Equals(tablixMemberElement.Element(ns + "RepeatOnNewPage")?.Value, "true", StringComparison.InvariantCultureIgnoreCase);
             string groupName = group?.Attribute("Name").Value;
             HeaderModel header = HeaderModel.Parse(tablixMemberElement.Element(ns + "TablixHeader"), converter.UnitConverter);
             CriteriaOperator filterCriteria = Filter.ParseFilters(group?.Element(ns + "Filters"), componentName, converter);
             List<ExpressionMember> groupExpressions = ExpressionMember.Parse(group?.Element(ns + "GroupExpressions"), componentName, converter);
             List<SortExpressionMember> sortExpressions = SortExpressionMember.Parse(tablixMemberElement.Element(ns + "SortExpressions"), componentName, converter);
             List<TablixMember> members = ParseContainer(tablixMemberElement, componentName, converter);
+            bool repeatOnNewPage = ReportingServicesConverter.ReadBoolValue(tablixMemberElement.Element(ns + "RepeatOnNewPage"));
             return new TablixMember(groupName, header, filterCriteria, groupExpressions, sortExpressions, members, repeatOnNewPage);
         }
         public string GroupName { get; }
@@ -61,9 +61,13 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         Header = 2
     }
     static class TablixMemberExtensions {
-        internal static bool IsEmpty(this TablixMember member) {
+        public static bool IsEmpty(this TablixMember member) {
             return !member.HasGroup()
-                && !member.HasHeader();
+                && !member.HasHeader()
+                && member.Members.Count == 0;
+        }
+        public static bool HasSubEmpty(this TablixMember member) {
+            return member.Members.Any(x => x.Flatten().Any(y => y.IsEmpty()));
         }
         public static bool HasGroup(this TablixMember member) {
             return !string.IsNullOrEmpty(member.GroupName);
@@ -96,27 +100,27 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         public static bool HasSubContentRecursive(this TablixMember member) {
             return member.Members.Any(x => x.HasContentRecursive());
         }
-
-        public static bool CanConvertDetailBand(this TablixMember member) {
-            return member.HasGroup()
-                && !member.Members.Any(x => x.HasGroupRecursive());
+        public static bool CanConvertDetailBand(this TablixMember member, bool canConvertEmpty = false) {
+            return (member.HasGroup() && !member.Members.Any(x => x.HasGroupRecursive()))
+                || (canConvertEmpty && member.IsEmpty());
         }
-        static bool GetGroupCellContentOnNextDetail(TablixMember member) {
+        static bool GetGroupCellContentOnNextDetail(TablixMember member, bool useEmptyGroups) {
             bool hasHeaderAndNoGroup = member.HasHeader() && !member.HasGroupRecursive();
-            bool cellContentOnNextDetail = hasHeaderAndNoGroup && !member.HasSubContentRecursive();
+            bool childIsEmptyLeaf = useEmptyGroups && member.Members.Any(x => x.IsEmpty());
+            bool cellContentOnNextDetail = hasHeaderAndNoGroup && !member.HasSubContentRecursive() && !childIsEmptyLeaf;
             return cellContentOnNextDetail;
         }
-        public static bool GetRowGroupPrintAcrossBands(this TablixMember member) {
-            bool cellContentOnNextDetail = GetGroupCellContentOnNextDetail(member);
+        public static bool GetRowGroupPrintAcrossBands(this TablixMember member, bool useEmptyGroups) {
+            bool cellContentOnNextDetail = GetGroupCellContentOnNextDetail(member, useEmptyGroups);
             bool printAcrossBands = !cellContentOnNextDetail
                 && member.HasGroupRecursive();
             return printAcrossBands;
         }
-        public static TableSource GetGroupTableSource(this TablixMember member) {
+        public static TableSource GetGroupTableSource(this TablixMember member, bool useEmptyGroups) {
             var tableSource = TableSource.None;
             if(member.HasHeader())
                 tableSource |= TableSource.Header;
-            bool cellContentOnNextDetail = GetGroupCellContentOnNextDetail(member);
+            bool cellContentOnNextDetail = GetGroupCellContentOnNextDetail(member, useEmptyGroups);
             if(cellContentOnNextDetail)
                 tableSource |= TableSource.CellContents;
             else if(!member.HasGroupRecursive() && member.IsEmpty())
@@ -129,7 +133,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 .Any(x => x.HasGroup());
         }
         public static int CountMembers(this TablixMember member) {
-            return !member.HasSubGroups() && member.Members.Count > 0
+            return member.Members.Count > 0 && !member.HasSubGroups()
                 ? member.Members.Count
                 : 1;
         }

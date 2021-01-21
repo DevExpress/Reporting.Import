@@ -96,12 +96,11 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         protected abstract bool CanReuseGeneratedBands(TablixMember member);
         HashSet<Band> Convert(TablixMember member, XtraReportBase report, IEnumerable<Band> parentGeneratedBands, ref float offset) {
             HashSet<SortExpressionMember> usedSorts = null;
-            var result = new HashSet<Band>();
+            var result = new HashSet<Band>(parentGeneratedBands);
             if(conductor.CanConvertGroupBand(member))
                 result.Add(ConvertGroupBand(member, report, parentGeneratedBands, ref offset, out usedSorts));
-            if(conductor.CanConvertDetailBand(member)) {
+            if(conductor.CanConvertDetailBand(member))
                 result.Add(ConvertDetailBand(member, report, usedSorts, parentGeneratedBands, ref offset));
-            }
             return result;
         }
         Band ConvertGroupBand(TablixMember member, XtraReportBase report, IEnumerable<Band> parentGeneratedBands, ref float offset, out HashSet<SortExpressionMember> usedSorts) {
@@ -117,8 +116,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             float newOffset = ConvertTable(member, detailBand, tableSource, offset);
             if(shouldUpdateOffsetOnDetailBand)
                 offset = newOffset;
-            AfterTableConvertDetailBand(member);
-            DetailBandExists = true;
+            AfterTableConvertDetailBand(member, tableSource);
             return detailBand;
         }
         protected abstract Band BeforeTableConvertDetailBand(TablixMember member, XtraReportBase report, ICollection<SortExpressionMember> usedSorts, IEnumerable<Band> parentGeneratedBands);
@@ -133,7 +131,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         }
         protected abstract IEnumerable<TModelItem> ModelItems { get; }
         protected abstract float ConvertTableCore(TablixMember member, Band band, TableSource tableSource, float offset, List<TModelItem> modelItems);
-        protected virtual void AfterTableConvertDetailBand(TablixMember member) { }
+        protected virtual void AfterTableConvertDetailBand(TablixMember member, TableSource tableSource) {
+            if(tableSource != TableSource.None)
+                DetailBandExists = true;
+        }
         protected virtual void AfterConvert(XtraReportBase currentReport) { }
         protected void InitializeNewBand(Band band, TablixMember member, XtraReportBase currentReport) {
             string middle = string.IsNullOrEmpty(member.GroupName)

@@ -44,6 +44,7 @@ namespace DevExpress.XtraReports.Import {
 
         public UnrecognizedFunctionBehavior UnrecognizedFunctionBehavior { get; set; } = UnrecognizedFunctionBehavior.InsertWarning;
         public bool IgnoreQueryValidation { get; set; } = false;
+        public bool UseTablixStaticGroups { get; set; } = false;
 
         UnitConverter unitConverter;
         string reportFolder;
@@ -286,7 +287,7 @@ namespace DevExpress.XtraReports.Import {
         }
 
         void ApplyPrintPageBandOnPage(PageBand band, XElement printOnPage, PrintOnPages excludingMode) {
-            bool shouldPrintOnPage = string.Equals(printOnPage?.Value, "true", StringComparison.InvariantCultureIgnoreCase);
+            bool shouldPrintOnPage = ReadBoolValue(printOnPage);
             if(!shouldPrintOnPage) {
                 var newBandKind = excludingMode == PrintOnPages.NotWithReportHeader
                     ? BandKind.ReportHeader
@@ -1288,9 +1289,9 @@ namespace DevExpress.XtraReports.Import {
                 component.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(propertyName));
                 return;
             }
-            var property = XRAccessor.GetPropertyDescriptor(component, propertyName);
+            PropertyDescriptor property = XRAccessor.GetPropertyDescriptor(component, propertyName);
             var defaultValue = (Color)property.GetValue(component);
-            var color = ParseColor(value, defaultValue);
+            Color color = ParseColor(value, defaultValue);
             property.SetValue(component, color);
         }
 
@@ -1409,17 +1410,14 @@ namespace DevExpress.XtraReports.Import {
         void ProcessReportParameters(XElement parametersElement) {
             IterateElements(parametersElement, xmlns + "ReportParameter", (e, name) => ProcessReportParameter(e));
         }
-
         void ProcessReportParameter(XElement parameterElement) {
             var parameter = new Parameter();
             parameter.Name = NamingMapper.GenerateSafeName<Parameter>(parameterElement.Attribute("Name").Value);
             parameter.Description = parameterElement.Attribute("Prompt")?.Value;
             var dataTypeElement = parameterElement.Element(xmlns + "DataType");
             parameter.Type = GetTypeFromDataType(dataTypeElement.Value);
-            var multiValue = parameterElement.Element(xmlns + "MultiValue")?.Value ?? "false";
-            parameter.MultiValue = bool.Parse(multiValue);
-            var nullable = parameterElement.Element(xmlns + "Nullable")?.Value ?? "false";
-            parameter.AllowNull = bool.Parse(nullable);
+            parameter.MultiValue = ReadBoolValue(parameterElement.Element(xmlns + "MultiValue"));
+            parameter.AllowNull = ReadBoolValue(parameterElement.Element(xmlns + "Nullable"));
             IterateElements(parameterElement, (e, name) => {
                 ExpressionParserResult expressionParserResult;
                 TryGetExpression(e, parameter.Name, false, out expressionParserResult);
@@ -1709,6 +1707,11 @@ namespace DevExpress.XtraReports.Import {
                 }
             }
         }
+        internal static bool ReadBoolValue(XElement element, bool defaultValue = false) {
+            if(element == null || string.IsNullOrEmpty(element.Value))
+                return defaultValue;
+            return bool.Parse(element.Value);
+        }
 
         static void TraceInfo(string format, params object[] args) {
             Tracer.TraceInformation(NativeSR.TraceSource, new FormattableString(format, args));
@@ -1742,6 +1745,7 @@ namespace DevExpress.XtraReports.Import {
         UnitConverter UnitConverter { get; }
         string ReportFolder { get; }
         bool IgnoreQueryValidation { get; }
+        bool UseTablixStaticGroups { get; }
         void ProcessCommonControlProperties(XElement element, XRControl control, float yBodyOffset, bool throwException = true);
         void SetComponentName<T>(T component, string name = null);
         void ProcessReportItem(XElement reportItem, XRControl container, ref float yBodyOffset);

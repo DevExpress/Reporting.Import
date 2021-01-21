@@ -14,7 +14,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             get { return model.Rows; }
         }
         public TablixToBandsConverter(IReportingServicesConverter converter, ITableConverter tableConverter, Model model)
-            : base(new TablixMemberConductor(), converter, tableConverter, model, shouldUpdateOffsetOnDetailBand: false) {
+            : base(new TablixMemberConductor(converter.UseTablixStaticGroups), converter, tableConverter, model, shouldUpdateOffsetOnDetailBand: false) {
         }
         protected override bool BeforeConvert_ShouldFillExistContainer(Band container) {
             return model.Element.Parent.Elements().Count() == 1 && container.Controls.Count == 0;
@@ -54,7 +54,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             if(groupBand == null) {
                 groupBand = new T {
                     Level = groupLevel,
-                    PrintAcrossBands = member.GetRowGroupPrintAcrossBands(),
+                    PrintAcrossBands = member.GetRowGroupPrintAcrossBands(rootConverter.UseTablixStaticGroups),
                     RepeatEveryPage = member.RepeatOnNewPage
                 };
                 groupLevel += DetailBandExists ? 1 : -1;
@@ -68,16 +68,20 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 .FirstOrDefault()
                 ?? ReportingServicesConverter.EnsureEmptyBand<DetailBand>(report, BandKind.Detail,
                     x => InitializeNewBand(x, member, report));
-            GroupField[] sortFields = member
-                .SortExpressions
-                .Where(x => usedSorts == null || !usedSorts.Contains(x))
-                .Select(x => new GroupField(x.GetMemberOrGenerateCalculatedField(report, member.GroupName, rootConverter), x.SortOrder))
-                .ToArray();
-            detailBand.SortFields.AddRange(sortFields);
+            if(member.SortExpressions.Count > 0) {
+                GroupField[] sortFields = member
+                    .SortExpressions
+                    .Where(x => usedSorts == null || !usedSorts.Contains(x))
+                    .Select(x => new GroupField(x.GetMemberOrGenerateCalculatedField(report, member.GroupName, rootConverter), x.SortOrder))
+                    .ToArray();
+                detailBand.SortFields.AddRange(sortFields);
+            }
             return detailBand;
         }
-        protected override void AfterTableConvertDetailBand(TablixMember member) {
-            groupLevel = 0;
+        protected override void AfterTableConvertDetailBand(TablixMember member, TableSource tableSource) {
+            base.AfterTableConvertDetailBand(member, tableSource);
+            if(tableSource != TableSource.None)
+                groupLevel = 0;
         }
         protected override float ConvertTableCore(TablixMember member, Band band, TableSource tableSource, float offset, List<RowModel> spanModelItems) {
             List<RowModel> rowModels = spanModelItems;
@@ -131,8 +135,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             return xrTable.RightF;
         }
         protected override bool CanReuseGeneratedBands(TablixMember member) {
-            return !member.HasGroupRecursive()
-                && member.HasHeaderRecursive(false);
+            return (!member.HasGroupRecursive() && member.HasHeaderRecursive(false))
+                || (rootConverter.UseTablixStaticGroups && member.HasHeader() && member.HasSubEmpty());
         }
         protected override void AfterConvert(XtraReportBase currentReport) {
             BandCollection bands = currentReport.Bands;
