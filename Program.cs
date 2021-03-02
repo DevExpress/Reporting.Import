@@ -26,7 +26,12 @@ namespace DevExpress.XtraReports.Import {
                 ConversionResult conversionResult = converter.Convert(path);
                 conversionResult.TargetReport.SaveLayoutToXml(outputFile);
             } catch(Exception ex) {
-                Console.WriteLine(ex.Message + Environment.NewLine);
+                Console.WriteLine(ex.GetBaseException().Message + Environment.NewLine);
+                Console.WriteLine();
+                if(!(ex is ArgumentCommandLineException)) {
+                    Console.WriteLine("As an alternative, you can create this layout in the Report Designer. See https://docs.devexpress.com/XtraReports/14651/get-started-with-devexpress-reporting for more information.");
+                    Console.WriteLine();
+                }
                 WriteInfo();
             }
         }
@@ -111,17 +116,17 @@ namespace DevExpress.XtraReports.Import {
                 }
                 return reportingServicesConverter;
             }
-            throw new ArgumentException($"File extension '{extension}' is not supported.");
+            throw new ArgumentCommandLineException($"File extension '{extension}' is not supported.");
         }
 
         static Dictionary<string, string> CreateArgDictionary(string[] args) {
             if(args.Length < 2)
-                throw new ArgumentException("Expected two or more aguments.");
+                throw new ArgumentCommandLineException("Expected two or more aguments.");
             Dictionary<string, string> argDictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach(string arg in args) {
                 string[] items = arg.Split(new char[] { ':' }, 2);
                 if(items.Length < 2)
-                    throw new ArgumentException("A value should be specified after the colon.");
+                    throw new ArgumentCommandLineException("A value should be specified after the colon.");
                 argDictionary.Add(items[0], items[1]);
             }
             return argDictionary;
@@ -152,6 +157,11 @@ namespace DevExpress.XtraReports.Import {
             foreach(char invalidChar in Path.GetInvalidFileNameChars())
                 originalSubreportName = originalSubreportName.Replace(invalidChar, '_');
             return originalSubreportName;
+        }
+    }
+    class ArgumentCommandLineException : ArgumentException {
+        public ArgumentCommandLineException(string message)
+            : base(message) {
         }
     }
 }

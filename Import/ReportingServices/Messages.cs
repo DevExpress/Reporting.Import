@@ -2,7 +2,7 @@
     static class Messages {
         public const string
             NotConvertedControl_Stub = "NOT CONVERTED",
-            InvalidFormat_Error = "The specified version of report definition is not supported.",
+            InvalidFormat_Error = "The specified XML namespace '{0}' of report definition is not supported.",
             ProcessControlLayout_Shape_Error = "The control should not be of XRShape type.",
             ControlLayoutProperty_NotSupported_Format = "Layout property '{0}' is not supported.",
             ControlProperty_NotSupported_Format = "Control property '{0}' is not supported.",

@@ -71,7 +71,7 @@ namespace DevExpress.XtraReports.Import {
                 XDocument rdlcDocument = SafeXml.CreateXDocument(fileStream);
                 xmlns = rdlcDocument.Root.GetDefaultNamespace();
                 if(!supportedNamespaces.Contains(xmlns.NamespaceName))
-                    throw new NotSupportedException(Messages.InvalidFormat_Error);
+                    throw new NotSupportedException(string.Format(Messages.InvalidFormat_Error, xmlns.NamespaceName));
                 ProcessRoot(rdlcDocument.Root);
                 dataSetToDataPairMap.Clear();
             }
@@ -1308,25 +1308,6 @@ namespace DevExpress.XtraReports.Import {
                 Tracer.TraceWarning(NativeSR.TraceSource, e.Message);
                 return null;
             }
-        }
-
-        void ProcessBorderWidth(string value, XRControl control, ExpressionParserResult expressionParserResult) {
-            bool hasExpression = expressionParserResult != null;
-            string expressionProperty = null;
-            var shape = control as XRShape;
-            if(shape != null) {
-                if(hasExpression)
-                    expressionProperty = nameof(shape.LineWidth);
-                else
-                    shape.LineWidth = (int)Math.Round(unitConverter.ToFloat(value, GraphicsDpi.Pixel));
-            } else {
-                if(hasExpression)
-                    expressionProperty = nameof(control.BorderWidth);
-                else
-                    control.BorderWidth = !hasExpression ? unitConverter.ToFloat(value) : 0;
-            }
-            if(hasExpression)
-                control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(expressionProperty));
         }
 
         readonly static string[] fontBoldValues = new[] { "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy" };
