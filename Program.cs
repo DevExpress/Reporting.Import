@@ -65,7 +65,7 @@ namespace DevExpress.XtraReports.Import {
         static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary, string outputPath) {
 
             Func<string, bool> ExtensionEquals = (extensionCompare)
-                => string.Equals(extension, extensionCompare, StringComparison.CurrentCultureIgnoreCase);
+                => string.Equals(extension, extensionCompare, StringComparison.InvariantCultureIgnoreCase);
 
 #if Access
             if(ExtensionEquals(".mdb") || ExtensionEquals(".mde")) {
@@ -88,7 +88,7 @@ namespace DevExpress.XtraReports.Import {
                 return new ActiveReportsConverter();
 #endif
 #if Crystal
-            if (ExtensionEquals(".rpt")) {
+            if(ExtensionEquals(".rpt")) {
                 Dictionary<string, string> crystalProperties = CreateSubArg(argDictionary, "/crystal");
                 string unrecognizedFunctionBehavior;
                 if(crystalProperties.TryGetValue("UnrecognizedFunctionBehavior", out unrecognizedFunctionBehavior)) {
