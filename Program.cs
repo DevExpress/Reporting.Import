@@ -63,8 +63,12 @@ namespace DevExpress.XtraReports.Import {
                 Console.WriteLine(s);
         }
         static ConverterBase CreateConverter(string extension, Dictionary<string, string> argDictionary, string outputPath) {
+
+            Func<string, bool> ExtensionEquals = (extensionCompare)
+                => string.Equals(extension, extensionCompare, StringComparison.InvariantCultureIgnoreCase);
+
 #if Access
-            if(extension == ".mdb" || extension == ".mde") {
+            if(ExtensionEquals(".mdb") || ExtensionEquals(".mde")) {
                 AccessReportSelectionForm.AccessIconResourceName = typeof(AccessConverter).Namespace + ".Import.AccessReport.bmp";
                 Dictionary<string, string> accessProperties = CreateSubArg(argDictionary, "/access");
                 string reportName;
@@ -80,11 +84,11 @@ namespace DevExpress.XtraReports.Import {
             }
 #endif
 #if Active
-            if(extension == ".rpx")
+            if(ExtensionEquals(".rpx"))
                 return new ActiveReportsConverter();
 #endif
 #if Crystal
-            if(extension == ".rpt") {
+            if(ExtensionEquals(".rpt")) {
                 Dictionary<string, string> crystalProperties = CreateSubArg(argDictionary, "/crystal");
                 string unrecognizedFunctionBehavior;
                 if(crystalProperties.TryGetValue("UnrecognizedFunctionBehavior", out unrecognizedFunctionBehavior)) {
@@ -97,7 +101,7 @@ namespace DevExpress.XtraReports.Import {
                 return crystalConverter;
             }
 #endif
-            if(extension == ".rdl" || extension == ".rdlc") {
+            if(ExtensionEquals(".rdl") || ExtensionEquals(".rdlc")) {
                 Dictionary<string, string> ssrsProperties = CreateSubArg(argDictionary, "/ssrs");
                 string unrecognizedFunctionBehavior;
                 var reportingServicesConverter = new ReportingServicesConverter();
