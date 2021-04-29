@@ -29,7 +29,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             List<SortExpressionMember> sortExpressions = SortExpressionMember.Parse(tablixMemberElement.Element(ns + "SortExpressions"), componentName, converter);
             List<TablixMember> members = ParseContainer(tablixMemberElement, componentName, converter);
             bool repeatOnNewPage = ReportingServicesConverter.ReadBoolValue(tablixMemberElement.Element(ns + "RepeatOnNewPage"));
-            return new TablixMember(groupName, header, filterCriteria, groupExpressions, sortExpressions, members, repeatOnNewPage);
+            Tuple<CriteriaOperator, bool> visibilityHidden = ParseVisibilityHidden(tablixMemberElement.Element(ns + "Visibility"), componentName, converter);
+            return new TablixMember(groupName, header, filterCriteria, groupExpressions, sortExpressions, members, repeatOnNewPage, visibilityHidden);
         }
         public string GroupName { get; }
         public HeaderModel Header { get; }
@@ -38,8 +39,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         public ReadOnlyCollection<SortExpressionMember> SortExpressions { get; }
         public ReadOnlyCollection<TablixMember> Members { get; }
         public bool RepeatOnNewPage { get; }
+        public Tuple<CriteriaOperator, bool> VisibilityHidden { get; }
 
-        public TablixMember(string groupName, HeaderModel header, CriteriaOperator filterCriteria, IList<ExpressionMember> groupExpressions, IList<SortExpressionMember> sortExpressions, IList<TablixMember> members, bool repeatOnNewPage) {
+        public TablixMember(string groupName, HeaderModel header, CriteriaOperator filterCriteria, IList<ExpressionMember> groupExpressions, IList<SortExpressionMember> sortExpressions, IList<TablixMember> members, bool repeatOnNewPage, Tuple<CriteriaOperator, bool> visibilityHidden) {
             GroupName = groupName;
             Header = header;
             FilterCriteria = filterCriteria;
@@ -47,11 +49,25 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             SortExpressions = new ReadOnlyCollection<SortExpressionMember>(sortExpressions);
             Members = new ReadOnlyCollection<TablixMember>(members);
             RepeatOnNewPage = repeatOnNewPage;
+            VisibilityHidden = visibilityHidden;
         }
 
         public bool TryGetSortExpressionMember(CriteriaOperator criteria, out SortExpressionMember sortExpression) {
             sortExpression = SortExpressions.FirstOrDefault(x => Equals(x.Expression, criteria));
             return sortExpression != null;
+        }
+        static Tuple<CriteriaOperator, bool> ParseVisibilityHidden(XElement xVisibility, string componentName, IReportingServicesConverter converter) {
+            var defaultResult = new Tuple<CriteriaOperator, bool>(null, false);
+            if(xVisibility == null)
+                return defaultResult;
+            XNamespace ns = xVisibility.GetDefaultNamespace();
+            string hiddenValue = xVisibility.Element(ns + "Hidden")?.Value;
+            if(string.IsNullOrEmpty(hiddenValue))
+                return defaultResult;
+            Expressions.ExpressionParserResult expressionResult;
+            if(!converter.TryGetExpression(hiddenValue, componentName, out expressionResult))
+                return new Tuple<CriteriaOperator, bool>(null, bool.Parse(hiddenValue));
+            return Tuple.Create(expressionResult.Criteria, false);
         }
     }
     [Flags]

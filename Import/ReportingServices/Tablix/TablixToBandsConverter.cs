@@ -57,6 +57,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                     PrintAcrossBands = member.GetRowGroupPrintAcrossBands(rootConverter.UseTablixStaticGroups),
                     RepeatEveryPage = member.RepeatOnNewPage
                 };
+                if(!ReferenceEquals(member.VisibilityHidden.Item1, null))
+                    groupBand.ExpressionBindings.Add(new ExpressionBinding(nameof(groupBand.Visible), member.VisibilityHidden.Item1.ToString()));
+                else
+                    groupBand.Visible = member.VisibilityHidden.Item2;
                 groupLevel += DetailBandExists ? 1 : -1;
                 InitializeNewBand(groupBand, member, report);
             }

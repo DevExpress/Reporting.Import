@@ -218,6 +218,11 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 case "chr":
                     Assert(parameters.Count == 1, "Chr");
                     return new FunctionOperator(FunctionOperatorType.Char, parameters[0]);
+                case "switch":
+                    List<CriteriaOperator> patchedParameters = parameters.ToList();
+                    if(parameters.Count % 2 == 0)
+                        patchedParameters.Add(new ConstantValue());
+                    return new FunctionOperator(FunctionOperatorType.Iif, patchedParameters);
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);

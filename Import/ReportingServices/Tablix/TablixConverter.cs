@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Linq;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Native;
@@ -45,7 +46,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 var xrCell = new XRTableCell();
                 xrCell.Dpi = xrRowHeader.Dpi;
                 xrRowHeader.Cells.Add(xrCell);
-                ProcessTablixCell(header.Cell, xrCell, columns[0]);
+                ProcessTablixCell(header.Cell, xrCell, columns[0], columns);
             }
             foreach(RowModel rowModel in rowModels)
                 ConvertTableColumn(rowModelCellIndexOffset, columns, xrTable, rowModel);
@@ -75,10 +76,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 xrCell = new XRTableCell();
                 xrCell.Dpi = xrRow.Dpi;
                 xrRow.Cells.Add(xrCell);
-                ProcessTablixCell(xCell, xrCell, columnWidth);
+                ProcessTablixCell(xCell, xrCell, columnWidth, columns);
             }
         }
-        public void ProcessTablixCell(XElement element, XRTableCell cell, float? columnWidth = null) {
+        public void ProcessTablixCell(XElement element, XRTableCell cell, float? columnWidth = null, IList<float> columns = null) {
             if(columnWidth.HasValue)
                 cell.WidthF = columnWidth.Value;
             ReportingServicesConverter.IterateElements(element, (e, name) => {
@@ -95,7 +96,13 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                         cell.Text = warningMessage + ".";
                         break;
                     case "ColSpan":
-                        break;        //handled
+                        if(columns != null) {
+                            cell.WidthF = columns.Skip(cell.Index).Take(int.Parse(e.Value)).Sum();
+                            if(cell.Controls.Count == 1) {
+                                cell.Controls[0].WidthF = cell.WidthF;
+                            }
+                        }
+                        break;
                     default:
                         var yBodyOffset = 0f;
                         rootConverter.ProcessReportItem(e, cell, ref yBodyOffset);
@@ -123,7 +130,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 var xrCell = new XRTableCell();
                 xrCell.Dpi = xrRow.Dpi;
                 xrRow.Cells.Add(xrCell);
-                ProcessTablixCell(header.Cell, xrCell, columnWidth: header.Size);
+                ProcessTablixCell(header.Cell, xrCell, columnWidth: header.Size, columns: columns);
             }
             for(int i = 0; i < columns.Count; i++) {
                 XElement xCell = rowModel.Cells[i];
@@ -137,7 +144,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 xrCell = new XRTableCell();
                 xrCell.Dpi = xrRow.Dpi;
                 xrRow.Cells.Add(xrCell);
-                ProcessTablixCell(xCell, xrCell, columnWidth: columnWidth);
+                ProcessTablixCell(xCell, xrCell, columnWidth, columns);
             }
         }
         static void GenerateStub(Model model, XRControl container) {
@@ -154,7 +161,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         void ConvertTableRows(IList<RowModel> rowModels, IList<float> columns, XRTable xrTable, bool useExistTableRow, HeaderModel header = null);
         void ConvertTableRow(RowModel rowModel, IList<float> columns, XRTableRow xrRow, HeaderModel header = null);
         void ConvertTableColumns(IEnumerable<RowModel> rowModels, int startModelColumnIndex, IList<float> columns, XRTable xrTable, HeaderModel header = null);
-        void ProcessTablixCell(XElement element, XRTableCell cell, float? columnWidth = null);
+        void ProcessTablixCell(XElement element, XRTableCell cell, float? columnWidth = null, IList<float> columns = null);
     }
     struct ConvertionResult {
         public bool ShouldStartNewBand { get; }
