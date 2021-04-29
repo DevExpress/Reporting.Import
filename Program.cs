@@ -118,6 +118,10 @@ namespace DevExpress.XtraReports.Import {
                 if(ssrsProperties.TryGetValue("UseTablixStaticGroups", out useTablixStaticGroups)) {
                     reportingServicesConverter.UseTablixStaticGroups = bool.Parse(useTablixStaticGroups);
                 }
+                string saveTablixGroups;
+                if(ssrsProperties.TryGetValue("SaveTablixGroups", out saveTablixGroups)) {
+                    reportingServicesConverter.SaveTablixGroups = bool.Parse(saveTablixGroups);
+                }
                 return reportingServicesConverter;
             }
             throw new ArgumentCommandLineException($"File extension '{extension}' is not supported.");

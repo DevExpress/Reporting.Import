@@ -14,7 +14,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
             get { return model.Rows; }
         }
         public TablixToBandsConverter(IReportingServicesConverter converter, ITableConverter tableConverter, Model model)
-            : base(new TablixMemberConductor(converter.UseTablixStaticGroups), converter, tableConverter, model, shouldUpdateOffsetOnDetailBand: false) {
+            : base(new TablixMemberConductor(converter.UseTablixStaticGroups, converter.SaveTablixGroups), converter, tableConverter, model, shouldUpdateOffsetOnDetailBand: false) {
         }
         protected override bool BeforeConvert_ShouldFillExistContainer(Band container) {
             return model.Element.Parent.Elements().Count() == 1 && container.Controls.Count == 0;

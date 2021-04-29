@@ -45,6 +45,7 @@ namespace DevExpress.XtraReports.Import {
         public UnrecognizedFunctionBehavior UnrecognizedFunctionBehavior { get; set; } = UnrecognizedFunctionBehavior.InsertWarning;
         public bool IgnoreQueryValidation { get; set; } = false;
         public bool UseTablixStaticGroups { get; set; } = false;
+        public bool SaveTablixGroups { get; set; } = false;
 
         UnitConverter unitConverter;
         string reportFolder;
@@ -477,11 +478,24 @@ namespace DevExpress.XtraReports.Import {
             string value = textRun.Element(xmlns + "Value")?.Value;
             if(string.IsNullOrEmpty(value))
                 return;
+            XElement xStyle = textRun.Element(xmlns + "Style");
+            string format = xStyle?.Element(xmlns + "Format")?.Value;
             DocumentRange range;
             ExpressionParserResult expressionResult;
             if(TryGetExpression(value, control, false, out expressionResult)) {
-                TraceInfo(Messages.RichTextRunExpression_NotSupported_Format, control.Name, expressionResult.Expression);
-                range = documentServer.Document.AppendText(string.Format(Messages.RichTextRunExpression_NotSupported_Format, control.Name, expressionResult.Expression));
+                if(expressionResult.Criteria is OperandProperty || expressionResult.Criteria is OperandParameter) {
+                    string mailMerge;
+                    if(expressionResult.Criteria is OperandParameter)
+                        mailMerge = "?" + ((OperandParameter)expressionResult.Criteria).ParameterName;
+                    else
+                        mailMerge = ((OperandProperty)expressionResult.Criteria).PropertyName;
+                    if(!string.IsNullOrEmpty(format))
+                        mailMerge += "!" + format;
+                    range = documentServer.Document.AppendText(mailMerge);
+                } else {
+                    TraceInfo(Messages.RichTextRunExpression_NotSupported_Format, control.Name, expressionResult.Expression);
+                    range = documentServer.Document.AppendText(string.Format(Messages.RichTextRunExpression_NotSupported_Format, control.Name, expressionResult.Expression));
+                }
             } else {
                 bool isHtml = textRun.Element(xmlns + "MarkupType")?.Value == "HTML";
                 range = isHtml
@@ -1727,6 +1741,7 @@ namespace DevExpress.XtraReports.Import {
         string ReportFolder { get; }
         bool IgnoreQueryValidation { get; }
         bool UseTablixStaticGroups { get; }
+        bool SaveTablixGroups { get; }
         void ProcessCommonControlProperties(XElement element, XRControl control, float yBodyOffset, bool throwException = true);
         void SetComponentName<T>(T component, string name = null);
         void ProcessReportItem(XElement reportItem, XRControl container, ref float yBodyOffset);

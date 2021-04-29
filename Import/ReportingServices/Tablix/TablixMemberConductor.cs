@@ -54,8 +54,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         }
     }
     class TablixMemberConductor : TablixMemberConductorBase {
-        public TablixMemberConductor(bool useEmptyGroups = false)
+        readonly bool saveGroups;
+        public TablixMemberConductor(bool useEmptyGroups = false, bool saveGroups = false)
             : base(useEmptyGroups) {
+            this.saveGroups = saveGroups;
         }
         public override bool CanRecursiveIterate(TablixMember member) {
             return base.CanRecursiveIterate(member)
@@ -64,6 +66,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
         public override bool CanConvertGroupBand(TablixMember member) {
             if(useEmptyGroups && member.IsEmpty())
                 return false;
+            if(saveGroups && member.HasGroup() && member.Members.Count > 0)
+                return true;
             return base.CanConvertGroupBand(member);
         }
         public override TableSource GetDetailTableSource(TablixMember member) {
