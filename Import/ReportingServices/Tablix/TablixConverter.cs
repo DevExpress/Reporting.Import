@@ -97,7 +97,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                         break;
                     case "ColSpan":
                         if(columns != null) {
-                            cell.WidthF = columns.Skip(cell.Index).Take(int.Parse(e.Value)).Sum();
+                            cell.Weight = columns.Skip(cell.Index).Take(int.Parse(e.Value)).Sum();
                             if(cell.Controls.Count == 1) {
                                 cell.Controls[0].WidthF = cell.WidthF;
                             }
