@@ -48,6 +48,13 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         public static ExpressionParserResult ParseSafe(string expression, string componentName, bool useReportSummary, bool allowUnrecognizedFunctions = false) {
             ExpressionParserResult result;
             try {
+                expression = expression
+                    // Remove namespace from functions (ex. Microsoft.VisualBasic.Interaction.Choose, Microsoft.VisualBasic.Interaction.IIf
+                    .Replace("Microsoft.VisualBasic.Interaction.", "")
+                    // Remove namespace from functions (ex. Microsoft.VisualBasic.Strings.FormatDateTime
+                    .Replace("Microsoft.VisualBasic.Strings.", "")
+                    // Remove namespace from functions (ex. Microsoft.VisualBasic.DateFormat.ShortDate
+                    .Replace("Microsoft.VisualBasic.", "");
                 result = Parse(expression, componentName, useReportSummary, allowUnrecognizedFunctions);
             } catch(Exception e) {
                 result = new ExpressionParserResult(CreateStub(expression, componentName, e));
@@ -140,7 +147,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                     Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Sum"));
                     return summaryFunctionsProvider.Create(parameters, Aggregate.Sum);
                 case "count":
-                    Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Count"));
+                    Assert(parameters.Count == 1 || parameters.Count == 2, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "Count"));
+                    if(parameters.Count == 2) // Count may have DataSetName as second parameter
+                        parameters = new[] { parameters[0] };
                     return summaryFunctionsProvider.Create(parameters, Aggregate.Count);
                 case "countdistinct":
                     Assert(parameters.Count == 1, new FormattableString(Messages.ExpressionParser_FunctionSingleArgument_Format, "DCount"));
@@ -223,6 +232,47 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                     if(parameters.Count % 2 == 0)
                         patchedParameters.Add(new ConstantValue());
                     return new FunctionOperator(FunctionOperatorType.Iif, patchedParameters);
+                case "choose":
+                    List<CriteriaOperator> patchedParametersChoose = parameters.ToList();
+                    for(int i = patchedParametersChoose.Count - 2; i > 1; i--)
+                        patchedParametersChoose.Insert(i, new BinaryOperator(patchedParametersChoose[0], new ConstantValue(i), BinaryOperatorType.Equal));
+                    if(patchedParametersChoose.Count % 2 == 0)
+                        patchedParametersChoose.Add(new ConstantValue());
+                    patchedParametersChoose[0] = new BinaryOperator(patchedParametersChoose[0], new ConstantValue(1), BinaryOperatorType.Equal);
+                    return new FunctionOperator(FunctionOperatorType.Iif, patchedParametersChoose);
+                case "cstr":
+                    Assert(parameters.Count == 1, "CStr");
+                    return new FunctionOperator(FunctionOperatorType.ToStr, parameters[0]);
+                case "datediff":
+                    Assert(parameters.Count == 3, "DateDiff");
+                    var datepart = (ConstantValue)parameters[0];
+                    var datepartValue = (string)datepart.Value;
+                    if(datepartValue == "yy" || datepartValue == "yyyy")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffYear, parameters[1], parameters[2]);
+                    else if(datepartValue == "m" || datepartValue == "mm")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffMonth, parameters[1], parameters[2]);
+                    else if(datepartValue == "d" || datepartValue == "dd")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffDay, parameters[1], parameters[2]);
+                    else if(datepartValue == "Hh")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffHour, parameters[1], parameters[2]);
+                    else if(datepartValue == "n" || datepartValue == "mi")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffMinute, parameters[1], parameters[2]);
+                    else if(datepartValue == "s" || datepartValue == "ss")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffSecond, parameters[1], parameters[2]);
+                    else if(datepartValue == "Ms")
+                        return new FunctionOperator(FunctionOperatorType.DateDiffMilliSecond, parameters[1], parameters[2]);
+                    yyerror("DateDiff=>datePart not recognized");
+                    break;
+                case "format":
+                    Assert(parameters.Count == 2, "Format");
+                    var format = (ConstantValue)parameters[1];
+                    var formatValue = (string)format.Value;
+                    if(formatValue == "Short Date")
+                        return new FunctionOperator("FormatString", new ConstantValue("{0:d}"), parameters[0]);
+                    else if(formatValue == "Long Date")
+                        return new FunctionOperator("FormatString", new ConstantValue("{0:D}"), parameters[0]);
+                    yyerror("DateDiff=>datePart not recognized");
+                    break;
             }
             if(allowUnrecognizedFunctions)
                 return new FunctionOperator(functionName, parameters);
@@ -273,6 +323,8 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                 return criteria;
             if(string.Equals(property, "ToString", StringComparison.InvariantCultureIgnoreCase))
                 return new FunctionOperator(FunctionOperatorType.ToStr, criteria);
+            if(string.Equals(property, "ToShortDateString", StringComparison.InvariantCultureIgnoreCase))
+                return new FunctionOperator("FormatString", new ConstantValue("{0:d}"), criteria);
             Fail(new FormattableString(Messages.ExpressionParser_Field_NotSupported_Format, property));
             return null;
         }
@@ -329,7 +381,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
         protected override CriteriaOperator CreateCore(CriteriaOperator criteria, Aggregate aggregate) {
             return new AggregateOperand(null, criteria, aggregate, null);
         }
-        protected override CriteriaOperator CreateCore(CriteriaOperator criteria, string summaryFunction) { 
+        protected override CriteriaOperator CreateCore(CriteriaOperator criteria, string summaryFunction) {
             throw new NotSupportedException();
         }
     }

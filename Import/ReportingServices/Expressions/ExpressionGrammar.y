@@ -25,7 +25,7 @@ using System;
 %left AND
 %right NOT
 %left '-' '+' '&'
-%left '*' '/'
+%left '*' '/' OP_MOD
 %nonassoc NEG
 
 %%
@@ -62,6 +62,7 @@ exp:
 	| exp '+'   exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.Plus ); }
     | exp '&'   exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.Plus ); }
 	| exp '-'   exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.Minus ); }
+    | exp OP_MOD exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.Modulo ); }
 	| exp OP_EQ exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.Equal ); }
 	| exp OP_NE exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.NotEqual ); }
 	| exp OP_GT exp 					{ $$ = new BinaryOperator( (CriteriaOperator)$1, (CriteriaOperator)$3, BinaryOperatorType.Greater ); }

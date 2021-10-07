@@ -231,10 +231,15 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
             currentValue = null;
             switch(str.ToUpperInvariant()) {
                 case "AND":
+                case "ANDALSO":
                     currentToken = Token.AND;
                     break;
                 case "OR":
+                case "ORELSE":
                     currentToken = Token.OR;
+                    break;
+                case "MOD":
+                    currentToken = Token.OP_MOD;
                     break;
                 case "TRUE":
                     currentToken = Token.CONST;

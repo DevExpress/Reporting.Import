@@ -9,6 +9,7 @@ using System.Text;
 using System.Xml.Linq;
 using DevExpress.Data.Browsing;
 using DevExpress.Data.Filtering;
+using DevExpress.Data.Filtering.Helpers;
 using DevExpress.Utils;
 using DevExpress.Utils.Internal;
 using DevExpress.XtraPrinting;
@@ -903,6 +904,19 @@ namespace DevExpress.XtraReports.Import {
                     break;
             }
         }
+        static CriteriaOperator InvertCriteria(CriteriaOperator criteria) {
+            var fo = criteria as FunctionOperator;
+            if(!fo.ReferenceEqualsNull()) {
+                if(fo.OperatorType == FunctionOperatorType.Iif) {
+                    CriteriaOperator temp = fo.Operands[1];
+                    fo.Operands[1] = fo.Operands[2];
+                    fo.Operands[2] = temp;
+                    return fo;
+                }
+            }
+            var result = new UnaryOperator(UnaryOperatorType.Not, criteria);
+            return result;
+        }
 
         void ProcessControlVisibility(XElement visibility, XRControl control) {
             IterateElements(visibility, (e, name) => {
@@ -911,10 +925,11 @@ namespace DevExpress.XtraReports.Import {
                 switch(name) {
                     case "Hidden":
                         if(expressionParserResult != null) {
-                            control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.Visible)));
+                            control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(nameof(control.Visible), InvertCriteria));
                             UpdateControlsReportDataSource(control, expressionParserResult);
                             break;
-                        } else control.Visible = bool.Parse(e.Value);
+                        } else
+                            control.Visible = !bool.Parse(e.Value);
                         break;
                     default:
                         TraceInfo(Messages.VisibilityProperty_NotSupported_Format, name, control.Name);
@@ -1408,7 +1423,7 @@ namespace DevExpress.XtraReports.Import {
         void ProcessReportParameter(XElement parameterElement) {
             var parameter = new Parameter();
             parameter.Name = NamingMapper.GenerateSafeName<Parameter>(parameterElement.Attribute("Name").Value);
-            parameter.Description = parameterElement.Attribute("Prompt")?.Value;
+            parameter.Description = !string.IsNullOrEmpty(parameterElement.Attribute("Prompt")?.Value) ? parameterElement.Attribute("Prompt").Value : parameterElement.Attribute("Name").Value;
             var dataTypeElement = parameterElement.Element(xmlns + "DataType");
             parameter.Type = GetTypeFromDataType(dataTypeElement.Value);
             parameter.MultiValue = ReadBoolValue(parameterElement.Element(xmlns + "MultiValue"));
