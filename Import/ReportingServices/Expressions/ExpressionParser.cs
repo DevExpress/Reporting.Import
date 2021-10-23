@@ -209,6 +209,9 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Expressions {
                         parameters[0],
                         new BinaryOperator(rightLen, parameters[1], BinaryOperatorType.Minus),
                         parameters[1]);
+                case "mid":
+                    Assert(parameters.Count == 2 || parameters.Count == 3);
+                    return new FunctionOperator(FunctionOperatorType.Substring, parameters);
                 case "len":
                     Assert(parameters.Count == 1, "Len");
                     return new FunctionOperator(FunctionOperatorType.Len, parameters[0]);

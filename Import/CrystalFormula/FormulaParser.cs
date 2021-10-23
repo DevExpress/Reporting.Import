@@ -112,6 +112,9 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                 case "trim":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.Trim, parameters);
+                case "mid":
+                    Assert(parameters.Count == 2 || parameters.Count == 3);
+                    return new FunctionOperator(FunctionOperatorType.Substring, parameters);
                 case "year":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.GetYear, parameters);
@@ -149,6 +152,9 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                 case "chrw":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.Char, parameters);
+                case "length":
+                    Assert(parameters.Count == 1);
+                    return new FunctionOperator(FunctionOperatorType.Len, parameters);
             }
             GotUnrecognizedFunctions?.Invoke(name);
             if(allowUnrecognizedFunctions)
@@ -156,7 +162,10 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
             return new FunctionOperator(FunctionOperatorType.Iif, new OperandValue(true), new OperandValue(NotSupportedStub), new OperandValue(new FunctionOperator(name, parameters).ToString()));
         }
         CriteriaOperator GetSpecialField(object fieldName) {
-            throw new FormulaParserException($"Special Fields are not supported ({fieldName}).");
+            string fieldNameString = (string)fieldName;
+            if(fieldNameString == "CurrentDate")
+                return new FunctionOperator(FunctionOperatorType.Today);
+            throw new FormulaParserException($"Special Field '{fieldName}' is not supported.");
         }
         static string GenerateFormatString(CriteriaOperator criteriaOperator) {
             var operandValue = criteriaOperator as OperandValue;

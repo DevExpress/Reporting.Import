@@ -1273,6 +1273,9 @@ namespace DevExpress.XtraReports.Import {
         XRLabel ConvertTextObject(Band band, TextObject textObject) {
             XRLabel control = CreateXRControl<XRLabel>(band, textObject.Name);
             control.Text = textObject.Text;
+            if(textObject.Text.Contains("{") && textObject.Text.Contains("}")) {
+                Tracer.TraceWarning(NativeSR.TraceSource, string.Format("Control '{0}' is untranslated. Please use the MailMerge feature here https://docs.devexpress.com/XtraReports/2433/detailed-guide-to-devexpress-reporting/use-report-controls/bind-report-controls-to-data/use-embedded-fields-mail-merge", control.Name));
+            }
             control.ForeColor = textObject.Color;
             control.Font = (Font)textObject.Font.Clone();
             return control;
