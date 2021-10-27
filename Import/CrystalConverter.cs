@@ -780,6 +780,9 @@ namespace DevExpress.XtraReports.Import {
                     connectionInfo.UserID,
                     connectionInfo.Password,
                     connectionInfo.IntegratedSecurity ? MsSqlAuthorizationType.Windows : MsSqlAuthorizationType.SqlServer);
+            } else if(databaseDll == DbConnectionAttributes.DATABASE_DLL_CRDB_ADOPLUS) {
+                var className = logonProperties.Lookup("Class Name") as string;
+                // todo: try to find DataSet class in project
             }
             Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_Connection_DatabaseDllNotSupported_Format, databaseDll));
             return null;

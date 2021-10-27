@@ -19,9 +19,8 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
 %token CONST DIRECTIVE
 %token PARAM COLUMN FORMULA
 %nonassoc NONELSE
-%nonassoc ELSE
+%nonassoc ELSE ':'
 %token IF THEN SELECT CASE DEFAULT
-%token ':'
 %token IDENTIFIER
 %token '(' ')'
 %left OR
@@ -38,31 +37,13 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
 %%
 formula:
 	  '\0'								{ result = null; }
-	| st0 emptystm '\0'					{ result = (CriteriaOperator)$1; }
-	| DIRECTIVE ';' st0 emptystm '\0'	{ directive = GetDirective($1); result = (CriteriaOperator)$3; }
+	| exp emptystm '\0'					{ result = (CriteriaOperator)$1; }
+	| DIRECTIVE ';' exp emptystm '\0'	{ directive = GetDirective($1); result = (CriteriaOperator)$3; }
 	;
 
 emptystm:
 	  ';'
 	|
-	;
-
- 
-st0:
-	  IF exp THEN st0 %prec NONELSE		{ $$ = GetIifFormula((CriteriaOperator)$2, (CriteriaOperator)$4, null ); }
-	| IF exp THEN st0 ELSE st0			{ $$ = GetIifFormula((CriteriaOperator)$2, (CriteriaOperator)$4, (CriteriaOperator)$6 ); } 
-	| SELECT exp cases DEFAULT ':' exp	{ $$ = GetSelectExpression((CriteriaOperator)$2, (List<Tuple<List<CriteriaOperator>, CriteriaOperator>>)$3, (CriteriaOperator)$6); }
-	| exp								{ $$ = $1; }
-	;
-
-cases:
-	  cases CASE explist ':' exp		{ var list = (List<Tuple<List<CriteriaOperator>, CriteriaOperator>>)$1; list.Add(Tuple.Create((List<CriteriaOperator>)$3, (CriteriaOperator)$5)); $$ = list; }
-	|									{ $$ = new List<Tuple<List<CriteriaOperator>, CriteriaOperator>>(); }
-	;
-
-explist:
-	  exp								{ $$ = new List<CriteriaOperator>() { (CriteriaOperator)$1 }; }
-	| explist ',' exp					{ var list = (List<CriteriaOperator>)$1; list.Add((CriteriaOperator)$3); $$ = list; }
 	;
 
 exp:
@@ -93,6 +74,19 @@ exp:
 	| exp AND exp						{ $$ = GroupOperator.And((CriteriaOperator)$1, (CriteriaOperator)$3); }
 	| exp OR exp						{ $$ = GroupOperator.Or((CriteriaOperator)$1, (CriteriaOperator)$3); }
 	| '(' exp ')'						{ $$ = $2; }
+	| IF exp THEN exp %prec NONELSE		{ $$ = GetIifFormula((CriteriaOperator)$2, (CriteriaOperator)$4, null ); }
+	| IF exp THEN exp ELSE exp			{ $$ = GetIifFormula((CriteriaOperator)$2, (CriteriaOperator)$4, (CriteriaOperator)$6 ); } 
+	| SELECT exp cases DEFAULT ':' exp	{ $$ = GetSelectExpression((CriteriaOperator)$2, (List<Tuple<List<CriteriaOperator>, CriteriaOperator>>)$3, (CriteriaOperator)$6); }
+	;
+
+cases:
+	  cases CASE explist ':' exp		{ var list = (List<Tuple<List<CriteriaOperator>, CriteriaOperator>>)$1; list.Add(Tuple.Create((List<CriteriaOperator>)$3, (CriteriaOperator)$5)); $$ = list; }
+	|									{ $$ = new List<Tuple<List<CriteriaOperator>, CriteriaOperator>>(); }
+	;
+
+explist:
+	  exp								{ $$ = new List<CriteriaOperator>() { (CriteriaOperator)$1 }; }
+	| explist ',' exp					{ var list = (List<CriteriaOperator>)$1; list.Add((CriteriaOperator)$3); $$ = list; }
 	;
 
 argumentslist:
