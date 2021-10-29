@@ -153,8 +153,30 @@ namespace DevExpress.XtraReports.Design.Import.CrystalFormula {
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.Char, parameters);
                 case "length":
+                case "len":
                     Assert(parameters.Count == 1);
                     return new FunctionOperator(FunctionOperatorType.Len, parameters);
+                case "instr":
+                    Assert(parameters.Count == 2 || parameters.Count == 3);
+                    return new FunctionOperator(FunctionOperatorType.CharIndex, parameters);
+                case "left":
+                    Assert(parameters.Count == 2);
+                    return new FunctionOperator(FunctionOperatorType.Substring, parameters[0], new OperandValue(0), parameters[1]);
+                case "right":
+                    Assert(parameters.Count == 2);
+                    return new FunctionOperator(FunctionOperatorType.Substring, parameters[0], new BinaryOperator(new FunctionOperator(FunctionOperatorType.Len, parameters[0]), parameters[1], BinaryOperatorType.Minus), parameters[1]);
+                case "tonumber":
+                    Assert(parameters.Count == 1);
+                    return new FunctionOperator(FunctionOperatorType.ToInt, parameters[0]);
+                case "replace":
+                    Assert(parameters.Count == 3);
+                    return new FunctionOperator(FunctionOperatorType.Replace, parameters);
+                case "round":
+                    Assert(parameters.Count == 1 || parameters.Count == 2);
+                    return new FunctionOperator(FunctionOperatorType.Round, parameters);
+                case "chr":
+                    Assert(parameters.Count == 1);
+                    return new FunctionOperator(FunctionOperatorType.Char, parameters);
             }
             GotUnrecognizedFunctions?.Invoke(name);
             if(allowUnrecognizedFunctions)
