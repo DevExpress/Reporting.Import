@@ -195,10 +195,8 @@ namespace DevExpress.XtraReports.Import {
                 }
             }
 
-            public static Type GetXRParameterType(FieldValueType kind, string parameterName)
-            {
-                switch (kind)
-                {
+            public static Type GetXRParameterType(FieldValueType kind, string parameterName) {
+                switch(kind) {
                     case FieldValueType.BooleanField:
                         return typeof(bool);
                     case FieldValueType.CurrencyField:
@@ -216,7 +214,6 @@ namespace DevExpress.XtraReports.Import {
                         return typeof(string);
                 }
             }
-
 
             public static bool TryConvertSummaryFunc(SummaryOperation crystalSummaryOperation, bool useRunningSummary, out SummaryFunc summaryFunc) {
                 summaryFunc = default(SummaryFunc);
@@ -571,17 +568,12 @@ namespace DevExpress.XtraReports.Import {
                 TargetReport.Name = crystalReport.Name;
 
                 GenerateDataSources(crystalReport.Database, filePath);
-                if (!crystalReport.IsSubreport)
-                {
-                    var listOfSubReportNames = crystalReport.Subreports.Cast<ReportDocument>().Select(x => x.Name).ToList();
-                    ConvertReportParameters(crystalReport.DataDefinition.ParameterFields.Cast<ParameterFieldDefinition>().Where(x => !listOfSubReportNames.Contains(x.ReportName)).ToList(), 
-                        crystalReport.Database.Tables);
+                IEnumerable<ParameterFieldDefinition> crystalParameters = crystalReport.DataDefinition.ParameterFields.Cast<ParameterFieldDefinition>();
+                if(!crystalReport.IsSubreport) {
+                    List<string> subReportNames = crystalReport.Subreports.Cast<ReportDocument>().Select(x => x.Name).ToList();
+                    crystalParameters = crystalParameters.Where(x => !subReportNames.Contains(x.ReportName)).ToList();
                 }
-                else
-                {
-                    ConvertReportParameters(crystalReport.DataDefinition.ParameterFields.Cast<ParameterFieldDefinition>().ToList(),
-                        crystalReport.Database.Tables);
-                }
+                ConvertReportParameters(crystalParameters, crystalReport.Database.Tables);
                 AssignStoredProcedureParameters();
                 ConvertCalculatedFields(crystalReport.DataDefinition.FormulaFields);
                 PostConvertCalculatedFields();
@@ -860,14 +852,12 @@ namespace DevExpress.XtraReports.Import {
             return false;
         }
 
-        void ConvertReportParameters(List<ParameterFieldDefinition> parameterFields, Cr.Tables crystalDatabaseTables)
-        {
+        void ConvertReportParameters(IEnumerable<ParameterFieldDefinition> parameterFields, Tables crystalDatabaseTables) {
             IEnumerable<KeyValuePair<string, Parameter>> parametersByName = parameterFields
                 .Cast<ParameterFieldDefinition>()
                 .Where(x => x.ParameterType == CrystalDecisions.Shared.ParameterType.ReportParameter || x.ParameterType == CrystalDecisions.Shared.ParameterType.StoreProcedureParameter)
                 .Select(x => ConvertParameter(x, crystalDatabaseTables));
-            foreach (KeyValuePair<string, Parameter> pair in parametersByName)
-            {
+            foreach(KeyValuePair<string, Parameter> pair in parametersByName) {
                 parametersByOriginalNames[pair.Key] = pair.Value;
                 TargetReport.Parameters.Add(pair.Value);
             }
@@ -1410,11 +1400,9 @@ namespace DevExpress.XtraReports.Import {
                 control.Text = Messages.Control_CantResolveBinding;
             }
         }
-                
-        KeyValuePair<string, Parameter> ConvertParameter(ParameterFieldDefinition crystalParameter, Tables crystalDatabaseTables)
-        {
-            var result = new Parameter
-            {
+
+        KeyValuePair<string, Parameter> ConvertParameter(ParameterFieldDefinition crystalParameter, Tables crystalDatabaseTables) {
+            var result = new Parameter {
                 Type = CrystalTypeConverter.GetXRParameterType(crystalParameter.ValueType, crystalParameter.Name),
                 Visible = crystalParameter.ParameterFieldUsage2.HasFlag(ParameterFieldUsage2.ShowOnPanel),
                 Description = crystalParameter.PromptText,
@@ -1424,14 +1412,10 @@ namespace DevExpress.XtraReports.Import {
             };
             string parameterName = crystalParameter.Name.TrimStart('@');
             NamingMapper.GenerateAndAssignXRControlName(result, parameterName);
-            if (crystalParameter.DefaultValues != null && crystalParameter.DefaultValues.Count > 0)
-            {
-                if (crystalParameter.DefaultValues.Count == 1 && crystalParameter.DefaultValues[0] is ParameterDiscreteValue)
-                {
+            if(crystalParameter.DefaultValues != null && crystalParameter.DefaultValues.Count > 0) {
+                if(crystalParameter.DefaultValues.Count == 1 && crystalParameter.DefaultValues[0] is ParameterDiscreteValue) {
                     result.Value = ((ParameterDiscreteValue)crystalParameter.DefaultValues[0]).Value;
-                }
-                else
-                {
+                } else {
                     var settings = new StaticListLookUpSettings();
                     IEnumerable<LookUpValue> lookupValues = crystalParameter.DefaultValues
                         .OfType<ParameterDiscreteValue>()
@@ -1439,45 +1423,37 @@ namespace DevExpress.XtraReports.Import {
                     settings.LookUpValues.AddRange(lookupValues);
                     result.LookUpSettings = settings;
                 }
-            }
-            else if (crystalParameter.Attributes.ContainsKey("FieldID"))
-            {
+            } else if(crystalParameter.Attributes.ContainsKey("FieldID")) {
                 var fieldId = (string)crystalParameter.Attributes["FieldID"];
                 string[] parts = fieldId.Split(DotSeparator, 2);
                 string crystalTableName = parts[0];
                 Tuple<SqlDataSource, SqlQuery> queryDefenition;
                 sqlQueriesByCrystalTableNames.TryGetValue(crystalTableName, out queryDefenition);
-                if (queryDefenition != null && parts.Length == 2)
-                {
+                if(queryDefenition != null && parts.Length == 2) {
                     string dataMember = queryDefenition.Item2?.Name
                         ?? GenerateDataMember(queryDefenition.Item1, crystalDatabaseTables, crystalTableName, new[] { parts[1] });
                     string valueMember = parts[1];
                     string mappedQueryColumnName;
-                    if (sqlSelectQueryColumnsByCrystalTableColumns.TryGetValue(fieldId, out mappedQueryColumnName))
-                    {
+                    if(sqlSelectQueryColumnsByCrystalTableColumns.TryGetValue(fieldId, out mappedQueryColumnName)) {
                         string[] mappedQueryColumnNameArray = mappedQueryColumnName.Split(DotSeparator, 2);
-                        if (mappedQueryColumnNameArray.Length == 2)
+                        if(mappedQueryColumnNameArray.Length == 2)
                             valueMember = mappedQueryColumnNameArray[1];
                     }
-                    var settings = new DynamicListLookUpSettings
-                    {
+                    var settings = new DynamicListLookUpSettings {
                         DataSource = queryDefenition.Item1,
                         DataMember = dataMember,
                         ValueMember = valueMember,
                         DisplayMember = valueMember
                     };
                     result.LookUpSettings = settings;
-                }
-                else
-                {
+                } else {
                     Tracer.TraceWarning(NativeSR.TraceSource, string.Format(Messages.Warning_ParameterLookups_CanNotFindTable_Format, crystalTableName, result));
                 }
             }
             return new KeyValuePair<string, Parameter>(crystalParameter.Name, result);
-        }        
+        }
 
-        static object GetXRParameterValue(ParameterFieldDefinition crystalParameter)
-        {
+        static object GetXRParameterValue(ParameterFieldDefinition crystalParameter) {
             IEnumerable<object> values = crystalParameter.CurrentValues
                 .OfType<ParameterDiscreteValue>()
                 .Select(x => x.Value);
@@ -1485,7 +1461,6 @@ namespace DevExpress.XtraReports.Import {
                 ? values.ToArray()
                 : values.FirstOrDefault();
         }
-
 
         static T GetRasObject<T>(EngineObjectBase crystalObjectBase)
             where T : class {
