@@ -757,7 +757,7 @@ namespace DevExpress.XtraReports.Import {
                     return new OracleConnectionParameters(connectionInfo.ServerName, connectionInfo.UserID, connectionInfo.Password);
                 } else if(oledbProvider == null) {
                     string filePath = logonProperties.Lookup("File Path") as string ?? logonProperties.Lookup("File Path ") as string;
-                    if(string.Equals(Path.GetExtension(filePath), ".xml", StringComparison.OrdinalIgnoreCase)) {
+                    if(string.Equals(Path.GetExtension(filePath), ".xml", StringComparison.OrdinalIgnoreCase) || string.Equals(Path.GetExtension(filePath), ".xsd", StringComparison.OrdinalIgnoreCase)) {
                         return new XmlFileConnectionParameters(filePath);
                     } else {
                         Tracer.TraceWarning(NativeSR.TraceSource, Messages.Warning_Connection_OleDbProviderNotSpecified);
