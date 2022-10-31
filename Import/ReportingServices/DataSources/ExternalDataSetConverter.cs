@@ -87,10 +87,13 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
             var ns = root.GetDefaultNamespace();
             var dataSourceElement = root.Descendants().SingleOrDefault(x => x.Name.LocalName == "DataSource");
             var dsNs = dataSourceElement.GetDefaultNamespace();
-
             var connectionElement = dataSourceElement.Descendants(dsNs + "Connection").Single();
-            var parameterPrefix = connectionElement?.Attribute("ParameterPrefix").Value ?? "@";
-            ProcessConnection(connectionElement, state);
+            var parameterPrefix = connectionElement?.Attribute("ParameterPrefix")?.Value ?? "@";
+            if(connectionElement != null) {
+                ProcessConnection(connectionElement, state);
+            } else {
+                Tracer.TraceWarning(NativeSR.TraceSource, Messages.DataSource_ExternalConnection_NotSupported);
+            }
 
             foreach(XElement table in root.Descendants(dsNs + "TableAdapter")) {
                 var queryName = table.Attribute("Name").Value;
@@ -149,11 +152,7 @@ namespace DevExpress.XtraReports.Import.ReportingServices.DataSources {
         }
 
         static void ProcessConnection(XElement connectionElement, DataSetConversionState state) {
-            if(connectionElement == null) {
-                Tracer.TraceWarning(NativeSR.TraceSource, Messages.DataSource_ExternalConnection_NotSupported);
-            }
-            var parameterPrefix = connectionElement?.Attribute("ParameterPrefix").Value ?? "@";
-            if(connectionElement.Attribute("IsAppSettingsProperty").Value == "true") {
+            if(connectionElement.Attribute("IsAppSettingsProperty")?.Value == "true") {
                 var appSettingsObject = connectionElement.Attribute("AppSettingsObjectName").Value;
                 var appSettingsPropertyName = connectionElement.Attribute("AppSettingsPropertyName").Value;
                 var propertyReferencePatterns = connectionElement.Attribute("PropertyReference").Value.Split('.');
