@@ -1,4 +1,4 @@
-#region DEMO_REMOVE
+﻿#region DEMO_REMOVE
 
 #if Active
 using System;
@@ -9,6 +9,9 @@ using System.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.Xml;
+using DevExpress.Drawing;
+using DevExpress.Drawing.Internal;
+using DevExpress.Drawing.Printing;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Drawing;
 using DevExpress.XtraPrinting.Native;
@@ -136,7 +139,7 @@ namespace DevExpress.XtraReports.Import {
 
         void ConvertPageSettings() {
             ARPageSettings ps = sourceReport.PageSettings;
-            TargetReport.PaperKind = ps.PaperKind;
+            TargetReport.PaperKind = (DXPaperKind)ps.PaperKind;
             if(ps.PaperKind == PaperKind.Custom) {
                 float paperWidth = sourceReport.PrintWidth + ps.Margins.Left + ps.Margins.Right;
                 if(paperWidth < ps.PaperWidth)
@@ -273,8 +276,8 @@ namespace DevExpress.XtraReports.Import {
             return xrAlign;
         }
 
-        static System.Drawing.Drawing2D.DashStyle MakeLineStyle(GrapeCity.ActiveReports.SectionReportModel.LineStyle style) {
-            return (System.Drawing.Drawing2D.DashStyle)lineStyleMap[style];
+        static DXDashStyle MakeLineStyle(GrapeCity.ActiveReports.SectionReportModel.LineStyle style) {
+            return (DXDashStyle)lineStyleMap[style];
         }
 
         static ImageSizeMode MakeSizeMode(GrapeCity.ActiveReports.SectionReportModel.SizeModes sizeMode) {
@@ -357,7 +360,7 @@ namespace DevExpress.XtraReports.Import {
             tgt.BackColor = src.BackColor;
             tgt.CanGrow = false;
             tgt.CanShrink = false;
-            tgt.Font = (Font)src.Font.Clone();
+            tgt.Font = SystemDrawingConverter.CreateDXFont((Font)src.Font.Clone());
             tgt.ForeColor = src.ForeColor;
             tgt.Multiline = src.MultiLine;
             tgt.NavigateUrl = src.HyperLink;
@@ -384,7 +387,7 @@ namespace DevExpress.XtraReports.Import {
             tgt.BackColor = src.BackColor;
             tgt.CanGrow = src.CanGrow;
             tgt.CanShrink = src.CanShrink;
-            tgt.Font = (Font)src.Font.Clone();
+            tgt.Font = SystemDrawingConverter.CreateDXFont((Font)src.Font.Clone());
             tgt.ForeColor = src.ForeColor;
             tgt.Multiline = src.MultiLine;
             tgt.NavigateUrl = src.HyperLink;
@@ -420,7 +423,7 @@ namespace DevExpress.XtraReports.Import {
             tgt.WordWrap = src.WrapMode != WrapMode.NoWrap;
             tgt.BackColor = src.BackColor;
             tgt.ForeColor = src.ForeColor;
-            tgt.Font = (Font)src.Font.Clone();
+            tgt.Font = SystemDrawingConverter.CreateDXFont((Font)src.Font.Clone());
 
             BindDataToControl(tgt, "CheckState", src.DataField);
             /*
@@ -434,7 +437,7 @@ namespace DevExpress.XtraReports.Import {
                 tgt.BackColor = src.BackColor;
             tgt.CanGrow = src.CanGrow;
             tgt.CanShrink = src.CanShrink;
-            tgt.Font = (Font)src.Font.Clone();
+            tgt.Font = SystemDrawingConverter.CreateDXFont((Font)src.Font.Clone());
             tgt.ForeColor = src.ForeColor;
             tgt.Rtf = src.RTF;
 
@@ -489,7 +492,7 @@ namespace DevExpress.XtraReports.Import {
             tgt.Symbology.CalcCheckSum = src.CheckSumEnabled;
 
             tgt.BackColor = src.BackColor;
-            tgt.Font = (Font)src.Font.Clone();
+            tgt.Font = SystemDrawingConverter.CreateDXFont((Font)src.Font.Clone());
             tgt.ForeColor = src.ForeColor;
             tgt.Text = src.Text;
             tgt.TextAlignment = MakeXRAlignment(src.Alignment, src.CaptionPosition);

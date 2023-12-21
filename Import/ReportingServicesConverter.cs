@@ -10,6 +10,9 @@ using System.Xml.Linq;
 using DevExpress.Data.Browsing;
 using DevExpress.Data.Filtering;
 using DevExpress.Data.Filtering.Helpers;
+using DevExpress.Drawing;
+using DevExpress.Drawing.Printing;
+using DevExpress.Drawing.Printing.Internal;
 using DevExpress.Utils;
 using DevExpress.Utils.Internal;
 using DevExpress.XtraPrinting;
@@ -84,10 +87,10 @@ namespace DevExpress.XtraReports.Import {
                     new TopMarginBand(),
                     new BottomMarginBand()
                 },
-                PaperKind = System.Drawing.Printing.PaperKind.Custom,
+                PaperKind = DXPaperKind.Custom,
                 Landscape = false,
-                Margins = new System.Drawing.Printing.Margins(),
-                Font = new Font("Arial", 10)
+                Margins = new DXMargins(),
+                Font = new DXFont("Arial", 10)
             };
         }
 
@@ -242,7 +245,7 @@ namespace DevExpress.XtraReports.Import {
                         break;
                 }
             });
-            TargetReport.PaperKind = PageSizeInfo.GetAppropriatePaperKind(TargetReport.PageWidth, TargetReport.PageHeight);
+            TargetReport.PaperKind = DXPageSizeInfo.GetAppropriatePaperKind(TargetReport.PageWidth, TargetReport.PageHeight);
         }
 
         #region bands
@@ -632,7 +635,7 @@ namespace DevExpress.XtraReports.Import {
                 label.Text = value;
         }
 
-        RichEditDocumentServer CreateRichDocumentServer(Font font, Color foreColor) {
+        RichEditDocumentServer CreateRichDocumentServer(DXFont font, Color foreColor) {
             var server = new RichEditDocumentServer();
             var characterProperties = server.Document.BeginUpdateCharacters(server.Document.Range);
             server.Document.DefaultCharacterProperties.FontName = characterProperties.FontName = font.Name;
@@ -1342,27 +1345,27 @@ namespace DevExpress.XtraReports.Import {
         readonly static string[] fontBoldValues = new[] { "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy" };
 
         void ProcessFont(string value, XRControl control, string propertyName, ExpressionParserResult expressionParserResult) {
-            var surrogate = FontSurrogate.FromFont(control.GetEffectiveFont());
+            var surrogate = FontSurrogate.FromDXFont(control.GetEffectiveFont());
             string expressionPropertyName = "";
             switch(propertyName) {
                 case "FontFamily":
                     if(expressionParserResult != null)
-                        expressionPropertyName = nameof(Font.Name);
+                        expressionPropertyName = nameof(DXFont.Name);
                     else surrogate.Name = value;
                     break;
                 case "FontSize":
                     if(expressionParserResult != null)
-                        expressionPropertyName = nameof(Font.Name);
+                        expressionPropertyName = nameof(DXFont.Name);
                     else surrogate.Size = float.Parse(unitConverter.CutUnits(value));
                     break;
                 case "FontWeight":
                     if(expressionParserResult != null)
-                        expressionPropertyName = nameof(Font.Name);
+                        expressionPropertyName = nameof(DXFont.Name);
                     else surrogate.Bold = fontBoldValues.Contains(value);
                     break;
                 case "FontStyle":
                     if(expressionParserResult != null)
-                        expressionPropertyName = nameof(Font.Name);
+                        expressionPropertyName = nameof(DXFont.Name);
                     else surrogate.Italic = value.ToLower() == "italic";
                     break;
                 case "TextDecoration":
@@ -1380,7 +1383,7 @@ namespace DevExpress.XtraReports.Import {
                 expressionPropertyName = $"{nameof(XRControl.Font)}.{expressionPropertyName}";
                 control.ExpressionBindings.Add(expressionParserResult.ToExpressionBinding(expressionPropertyName));
             }
-            control.Font = FontSurrogate.ToFont(surrogate);
+            control.Font = FontSurrogate.ToDXFont(surrogate);
         }
 
         static void ProcessFormat(string value, XRControl control, ExpressionParserResult expressionParserResult) {
@@ -1548,7 +1551,7 @@ namespace DevExpress.XtraReports.Import {
             IterateElements(images, (e, name) => {
                 if(name == "EmbeddedImage") {
                     string imageName = e.Attribute("Name").Value;
-                    Image image = ConvertBase64ToImage(e.Element(xmlns + "ImageData")?.Value);
+                    DXImage image = ConvertBase64ToImage(e.Element(xmlns + "ImageData")?.Value);
                     if(!string.IsNullOrEmpty(imageName) && image != null)
                         TargetReport.ImageResources.Add(imageName, new XtraPrinting.Drawing.ImageSource(image));
                 } else {
@@ -1589,11 +1592,11 @@ namespace DevExpress.XtraReports.Import {
             return band;
         }
 
-        static Image ConvertBase64ToImage(string base64String) {
+        static DXImage ConvertBase64ToImage(string base64String) {
             if(string.IsNullOrEmpty(base64String))
                 return null;
             var bytes = System.Convert.FromBase64String(base64String);
-            return Image.FromStream(new MemoryStream(bytes));
+            return DXImage.FromStream(new MemoryStream(bytes));
         }
 
         internal static Type GetTypeFromDataType(string value) {

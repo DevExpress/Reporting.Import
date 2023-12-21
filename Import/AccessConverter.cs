@@ -6,12 +6,13 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Data.OleDb;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Drawing.Printing;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using DevExpress.Drawing;
+using DevExpress.Drawing.Printing;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Native;
 using DevExpress.XtraReports.UI;
@@ -88,41 +89,41 @@ namespace DevExpress.XtraReports.Import {
         static int TwipsToHOI(int val) {
             return XRConvert.Convert(val, GraphicsDpi.Twips, GraphicsDpi.HundredthsOfAnInch);
         }
-        static FontStyle MakeFontStyle(short bold, bool italic, bool underline) {
-            FontStyle fs = FontStyle.Regular;
+        static DXFontStyle MakeFontStyle(short bold, bool italic, bool underline) {
+            DXFontStyle fs = DXFontStyle.Regular;
             if(bold != 0)
-                fs |= FontStyle.Bold;
+                fs |= DXFontStyle.Bold;
             if(italic)
-                fs |= FontStyle.Italic;
+                fs |= DXFontStyle.Italic;
             if(underline)
-                fs |= FontStyle.Underline;
+                fs |= DXFontStyle.Underline;
             return fs;
         }
         static BorderSide ToBorderSide(byte borderStyle) {
             return (borderStyle == 0) ? BorderSide.None : BorderSide.All;
         }
-        static DashStyle MakeLineStyle(byte style) {
+        static DXDashStyle MakeLineStyle(byte style) {
             switch(style) {
                 case 0:
-                    return DashStyle.Custom;
+                    return DXDashStyle.Custom;
                 case 1:
-                    return DashStyle.Solid;
+                    return DXDashStyle.Solid;
                 case 2:
-                    return DashStyle.Dash;
+                    return DXDashStyle.Dash;
                 case 3:
-                    return DashStyle.Dash;
+                    return DXDashStyle.Dash;
                 case 4:
-                    return DashStyle.Dot;
+                    return DXDashStyle.Dot;
                 case 5:
-                    return DashStyle.Dot;
+                    return DXDashStyle.Dot;
                 case 6:
-                    return DashStyle.DashDot;
+                    return DXDashStyle.DashDot;
                 case 7:
-                    return DashStyle.DashDotDot;
+                    return DXDashStyle.DashDotDot;
                 case 8:
-                    return DashStyle.Solid;
+                    return DXDashStyle.Solid;
                 default:
-                    return DashStyle.Custom;
+                    return DXDashStyle.Custom;
             }
         }
         static TextAlignment MakeTextAlignment(byte textAlign) {
@@ -291,7 +292,7 @@ namespace DevExpress.XtraReports.Import {
                 int dataSheet = reader.ReadInt32();
                 stream.Close();
 
-                TargetReport.PaperKind = PaperKind.Custom;
+                TargetReport.PaperKind = DXPaperKind.Custom;
 
                 TargetReport.PageWidth = TwipsToHOI(report.LogicalPageWidth + leftMargin + rightMargin);
                 int logicalPageHeight;
@@ -324,7 +325,7 @@ namespace DevExpress.XtraReports.Import {
             AssignBounds(target, source.Left, source.Top, source.Width, source.Height);
             AssingPadding(target, source.LeftMargin, source.TopMargin, source.RightMargin, source.BottomMargin);
             target.Text = source.Caption;
-            target.Font = new Font(source.FontName, source.FontSize, MakeFontStyle(source.FontBold, source.FontItalic, source.FontUnderline));
+            target.Font = new DXFont(source.FontName, source.FontSize, MakeFontStyle(source.FontBold, source.FontItalic, source.FontUnderline));
             target.ForeColor = ToColor(source.ForeColor);
             target.TextAlignment = MakeTextAlignment(source.TextAlign);
             target.Visible = source.Visible;
@@ -368,7 +369,7 @@ namespace DevExpress.XtraReports.Import {
             AssingPadding(tgt, src.LeftMargin, src.TopMargin, src.RightMargin, src.BottomMargin);
             tgt.CanGrow = src.CanGrow;
             tgt.CanShrink = src.CanShrink;
-            tgt.Font = new Font(src.FontName, src.FontSize, MakeFontStyle(src.FontBold, src.FontItalic, src.FontUnderline));
+            tgt.Font = new DXFont(src.FontName, src.FontSize, MakeFontStyle(src.FontBold, src.FontItalic, src.FontUnderline));
             tgt.Summary.FormatString = MakeFormat(src.Format, src.DecimalPlaces);
             //src.FormatConditions;
             //src.FormatPictureText;

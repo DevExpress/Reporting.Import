@@ -16,6 +16,9 @@ using CrystalDecisions.Shared;
 using DevExpress.Data.Filtering;
 using DevExpress.DataAccess.ConnectionParameters;
 using DevExpress.DataAccess.Sql;
+using DevExpress.Drawing;
+using DevExpress.Drawing.Internal;
+using DevExpress.Drawing.Printing;
 using DevExpress.XtraPrinting;
 using DevExpress.XtraPrinting.Native;
 using DevExpress.XtraReports.Design.Import.CrystalFormula;
@@ -78,88 +81,88 @@ namespace DevExpress.XtraReports.Import {
                 }
             }
 
-            public static PaperKind GetPaperKind(CrystalDecisions.Shared.PaperSize paperSize) {
+            public static DXPaperKind GetPaperKind(CrystalDecisions.Shared.PaperSize paperSize) {
                 switch(paperSize) {
                     case CrystalDecisions.Shared.PaperSize.Paper10x14:
-                        return PaperKind.Standard10x14;
+                        return DXPaperKind.Standard10x14;
                     case CrystalDecisions.Shared.PaperSize.Paper11x17:
-                        return PaperKind.Standard11x17;
+                        return DXPaperKind.Standard11x17;
                     case CrystalDecisions.Shared.PaperSize.PaperA4:
-                        return PaperKind.A4;
+                        return DXPaperKind.A4;
                     case CrystalDecisions.Shared.PaperSize.PaperA4Small:
-                        return PaperKind.A4Small;
+                        return DXPaperKind.A4Small;
                     case CrystalDecisions.Shared.PaperSize.PaperA5:
-                        return PaperKind.A5;
+                        return DXPaperKind.A5;
                     case CrystalDecisions.Shared.PaperSize.PaperB4:
-                        return PaperKind.B4;
+                        return DXPaperKind.B4;
                     case CrystalDecisions.Shared.PaperSize.PaperB5:
-                        return PaperKind.B5;
+                        return DXPaperKind.B5;
                     case CrystalDecisions.Shared.PaperSize.PaperCsheet:
-                        return PaperKind.CSheet;
+                        return DXPaperKind.CSheet;
                     case CrystalDecisions.Shared.PaperSize.PaperDsheet:
-                        return PaperKind.DSheet;
+                        return DXPaperKind.DSheet;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelope10:
-                        return PaperKind.Number10Envelope;
+                        return DXPaperKind.Number10Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelope11:
-                        return PaperKind.Number11Envelope;
+                        return DXPaperKind.Number11Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelope12:
-                        return PaperKind.Number12Envelope;
+                        return DXPaperKind.Number12Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelope14:
-                        return PaperKind.Number14Envelope;
+                        return DXPaperKind.Number14Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelope9:
-                        return PaperKind.Number9Envelope;
+                        return DXPaperKind.Number9Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeB4:
-                        return PaperKind.B4Envelope;
+                        return DXPaperKind.B4Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeB5:
-                        return PaperKind.B5Envelope;
+                        return DXPaperKind.B5Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeB6:
-                        return PaperKind.B6Envelope;
+                        return DXPaperKind.B6Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeC3:
-                        return PaperKind.C3Envelope;
+                        return DXPaperKind.C3Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeC4:
-                        return PaperKind.C4Envelope;
+                        return DXPaperKind.C4Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeC5:
-                        return PaperKind.C5Envelope;
+                        return DXPaperKind.C5Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeC6:
-                        return PaperKind.C6Envelope;
+                        return DXPaperKind.C6Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeC65:
-                        return PaperKind.C65Envelope;
+                        return DXPaperKind.C65Envelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeDL:
-                        return PaperKind.DLEnvelope;
+                        return DXPaperKind.DLEnvelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeItaly:
-                        return PaperKind.ItalyEnvelope;
+                        return DXPaperKind.ItalyEnvelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEnvelopeMonarch:
-                        return PaperKind.MonarchEnvelope;
+                        return DXPaperKind.MonarchEnvelope;
                     case CrystalDecisions.Shared.PaperSize.PaperEsheet:
-                        return PaperKind.ESheet;
+                        return DXPaperKind.ESheet;
                     case CrystalDecisions.Shared.PaperSize.PaperExecutive:
-                        return PaperKind.Executive;
+                        return DXPaperKind.Executive;
                     case CrystalDecisions.Shared.PaperSize.PaperFanfoldLegalGerman:
-                        return PaperKind.GermanLegalFanfold;
+                        return DXPaperKind.GermanLegalFanfold;
                     case CrystalDecisions.Shared.PaperSize.PaperFanfoldStdGerman:
-                        return PaperKind.GermanStandardFanfold;
+                        return DXPaperKind.GermanStandardFanfold;
                     case CrystalDecisions.Shared.PaperSize.PaperFanfoldUS:
-                        return PaperKind.USStandardFanfold;
+                        return DXPaperKind.USStandardFanfold;
                     case CrystalDecisions.Shared.PaperSize.PaperFolio:
-                        return PaperKind.Folio;
+                        return DXPaperKind.Folio;
                     case CrystalDecisions.Shared.PaperSize.PaperLedger:
-                        return PaperKind.Ledger;
+                        return DXPaperKind.Ledger;
                     case CrystalDecisions.Shared.PaperSize.PaperLegal:
-                        return PaperKind.Legal;
+                        return DXPaperKind.Legal;
                     case CrystalDecisions.Shared.PaperSize.PaperLetter:
-                        return PaperKind.Letter;
+                        return DXPaperKind.Letter;
                     case CrystalDecisions.Shared.PaperSize.PaperLetterSmall:
-                        return PaperKind.LetterSmall;
+                        return DXPaperKind.LetterSmall;
                     case CrystalDecisions.Shared.PaperSize.PaperNote:
-                        return PaperKind.Note;
+                        return DXPaperKind.Note;
                     case CrystalDecisions.Shared.PaperSize.PaperQuarto:
-                        return PaperKind.Quarto;
+                        return DXPaperKind.Quarto;
                     case CrystalDecisions.Shared.PaperSize.PaperStatement:
-                        return PaperKind.Statement;
+                        return DXPaperKind.Statement;
                     case CrystalDecisions.Shared.PaperSize.PaperTabloid:
-                        return PaperKind.Tabloid;
+                        return DXPaperKind.Tabloid;
                     default:
-                        return PaperKind.Custom;
+                        return DXPaperKind.Custom;
                 };
             }
 
@@ -184,14 +187,14 @@ namespace DevExpress.XtraReports.Import {
                 };
             }
 
-            public static DashStyle GetLineStyle(LineStyle style) {
+            public static DXDashStyle GetLineStyle(LineStyle style) {
                 switch(style) {
                     case LineStyle.DotLine:
-                        return DashStyle.DashDot;
+                        return DXDashStyle.DashDot;
                     case LineStyle.DashLine:
-                        return DashStyle.Dash;
+                        return DXDashStyle.Dash;
                     default:
-                        return DashStyle.Solid;
+                        return DXDashStyle.Solid;
                 }
             }
 
@@ -358,22 +361,22 @@ namespace DevExpress.XtraReports.Import {
                         return ConditionType.Equal;
                 }
             }
-            public static Xpo.DB.JoinType ConvertToJoinType(CrData.CrTableJoinTypeEnum joinType) {
+            public static SqlJoinType ConvertToJoinType(CrData.CrTableJoinTypeEnum joinType) {
                 switch(joinType) {
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeLeftOuterJoin:
-                        return Xpo.DB.JoinType.LeftOuter;
+                        return SqlJoinType.LeftOuter;
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeEqualJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeGreaterOrEqualJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeGreaterThanJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeLessOrEqualJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeLessThanJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeNotEqualJoin:
-                        return Xpo.DB.JoinType.Inner;
+                        return SqlJoinType.Inner;
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeOuterJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeRightOuterJoin:
                     case CrData.CrTableJoinTypeEnum.crTableJoinTypeAdvance:
                     default:
-                        return Xpo.DB.JoinType.Inner;
+                        return SqlJoinType.Inner;
                 }
             }
         }
@@ -663,7 +666,7 @@ namespace DevExpress.XtraReports.Import {
                         DataAccess.Sql.Table nestedTable = selectQuery.Tables.FirstOrDefault(x => x.Name == crystalTableLink.DestinationTable.Location);
                         if(parentTable != null && nestedTable != null) {
                             var rasTableLink = GetRasObject<CrystalDecisions.ReportAppServer.DataDefModel.ISCRTableLink>(crystalTableLink);
-                            Xpo.DB.JoinType joinType = CrystalTypeConverter.ConvertToJoinType(rasTableLink.JoinType);
+                            SqlJoinType joinType = CrystalTypeConverter.ConvertToJoinType(rasTableLink.JoinType);
                             RelationColumnInfo[] relationColumnInfo = GenerateRelationColumnInfo(
                                 crystalTableLink.SourceFields,
                                 crystalTableLink.DestinationFields,
@@ -973,8 +976,8 @@ namespace DevExpress.XtraReports.Import {
             TargetReport.Bands.AddRange(groupFooters);
         }
 
-        static Margins MakePageMargins(PageMargins pageMargins) {
-            return new Margins(
+        static DXMargins MakePageMargins(PageMargins pageMargins) {
+            return new DXMargins(
                 TwipsToHOI(pageMargins.leftMargin),
                 TwipsToHOI(pageMargins.rightMargin),
                 TwipsToHOI(pageMargins.topMargin),
@@ -983,7 +986,7 @@ namespace DevExpress.XtraReports.Import {
 
         void ConvertPageSettings(PrintOptions printOptions) {
             TargetReport.PaperKind = CrystalTypeConverter.GetPaperKind(printOptions.PaperSize);
-            if(TargetReport.PaperKind == PaperKind.Custom) {
+            if(TargetReport.PaperKind == DXPaperKind.Custom) {
                 TargetReport.PageHeight = TwipsToHOI(printOptions.PageContentHeight) + TwipsToHOI(printOptions.PageMargins.topMargin) + TwipsToHOI(printOptions.PageMargins.bottomMargin);
                 TargetReport.PageWidth = TwipsToHOI(printOptions.PageContentWidth) + TwipsToHOI(printOptions.PageMargins.leftMargin) + TwipsToHOI(printOptions.PageMargins.rightMargin);
             }
@@ -1109,7 +1112,7 @@ namespace DevExpress.XtraReports.Import {
             }
 
             control.ForeColor = fieldObject.Color;
-            control.Font = (Font)fieldObject.Font.Clone();
+            control.Font = SystemDrawingConverter.CreateDXFont((Font)fieldObject.Font.Clone());
             return control;
         }
 
@@ -1283,7 +1286,7 @@ namespace DevExpress.XtraReports.Import {
                 Tracer.TraceWarning(NativeSR.TraceSource, string.Format("Control '{0}' is untranslated. Please use the MailMerge feature here https://docs.devexpress.com/XtraReports/2433/detailed-guide-to-devexpress-reporting/use-report-controls/bind-report-controls-to-data/use-embedded-fields-mail-merge", control.Name));
             }
             control.ForeColor = textObject.Color;
-            control.Font = (Font)textObject.Font.Clone();
+            control.Font = SystemDrawingConverter.CreateDXFont((Font)textObject.Font.Clone());
             return control;
         }
 
