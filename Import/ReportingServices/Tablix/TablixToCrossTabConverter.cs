@@ -69,7 +69,10 @@ namespace DevExpress.XtraReports.Import.ReportingServices.Tablix {
                 (_, i) => ConvertData(i, columnSpan));
             xtab.DataFields.AddRange(dataFields);
             xtab.GenerateLayout();
-            container.Controls.Add(xtab);
+            if (container is Band || container.Band == null)
+                container.Controls.Add(xtab);
+            else
+                container.Band.Controls.Add(xtab);
             new GenericStylesGenerator(xtab, InitializeNamedStyle).CreateDefaultStyles(true);
         }
         void InitializeNamedStyle(XRControlStyle style, string baseName) {
